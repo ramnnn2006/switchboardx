@@ -348,6 +348,17 @@ export default function Planner({
           n.textContent = result.tokens.toLocaleString();
       }
     }
+    // Keep every edited-plan receipt and path chip synchronized with the graph.
+    const summaryText=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    while(summaryText.nextNode()){
+      const n=summaryText.currentNode;
+      if(/^Total,?\s*\d+ calls?$/.test(n.textContent?.trim()||""))n.textContent=`Total, ${result.steps.length} calls`;
+    }
+    const stepsList=el.querySelector('ol[aria-label="Ordered plan steps"]');
+    const totals=stepsList?.parentElement?.querySelector(".mt-2.flex.justify-between");
+    if(totals)totals.innerHTML=`<span class="tabular-nums">Total, ${result.steps.length} calls</span><span class="tabular-nums">${result.tokens.toLocaleString()} tokens</span>`;
+    const planChips=Array.from(el.querySelectorAll(".diff-item[data-flip-id]"));
+    planChips.forEach((b,i)=>{if(!result.steps[i])b.remove();else b.textContent=`${i+1} ${result.steps[i].server}/${result.steps[i].label}`;});
     const stageRows = Array.from(el.querySelectorAll("aside"))
       .at(-1)
       ?.querySelectorAll("li");

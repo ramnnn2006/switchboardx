@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { initRunsInteractions } from "../lib/runs-interactions";
 import { createPortal } from "react-dom";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -103,7 +104,7 @@ export default function Experience({
       }
     };
     all("button").forEach((b) => {
-      if (b.getAttribute("aria-label") === "Open menu") on(b, "click", () => setMenu(x => !x));
+      if (b.getAttribute("aria-label") === "Open menu") on(b, "click", () => {b.setAttribute("aria-expanded",String(!menu));setMenu(x=>!x);});
       if (b.getAttribute("aria-label")?.includes("mode"))
         on(b, "click", () => {
           const dark = !document.documentElement.classList.contains("dark");
@@ -307,7 +308,7 @@ export default function Experience({
               b.getAttribute("aria-pressed") === "true" ? "false" : "true",
             );
             notify(
-              "BM25 top-5: 31% chain recall, 1,430 tokens. See Bench for the measured comparison.",
+              "Comparison shows recorded reference data, not a new measurement of the current backend.",
             );
           });
         if (s === "Show query")
@@ -577,6 +578,9 @@ export default function Experience({
         const labels = ["Private data", "Untrusted input", "Sends out"];
         const count = labels.filter(label => all("main button[aria-label]").some(b => b.getAttribute("aria-label")?.endsWith(": " + label) && b.getAttribute("aria-pressed") === "true")).length;
         const countLine = all("main p").find(p => /^\d\s+of 3 present/.test(text(p)));
+        all("main div.rounded-xl, main div.rounded-lg").filter(n => /^(Private data|Untrusted input|Sends out)/.test(text(n)) && n.children.length<5).forEach((card,i)=>{
+          const line=card.querySelector(".font-mono");if(line)line.textContent=all("main button[aria-label]").filter(b=>b.getAttribute("aria-label")?.endsWith(": "+labels[i])&&b.getAttribute("aria-pressed")==="true").map(b=>b.getAttribute("aria-label")!.split(": ")[0].split(".").slice(1).join(".")).join(", ") || "none";
+        });
         if(countLine) countLine.textContent = `${count} of 3 present. ${count === 3 ? "The edge into the way out gets cut." : "No lethal trifecta. The chain runs."}`;
       }
       function updateVerdict() {
@@ -591,7 +595,7 @@ export default function Experience({
           verdict.textContent = blocked
             ? "Blocked. The plan combines private data, untrusted input and a way out. The outbound edge is cut."
             : "Allowed. At least one leg of the risky chain is absent. This checks plan flags, not model behavior.";
-        if (run && text(run) !== "Running…") animateGuard(el, blocked);
+        if(run){resetGuard(el);running=false;run.textContent="Run it";const t=animateGuard(el,blocked);if(t)t.progress(1);updateLegCount();}
       }
       on(run || null, "click", () => {
         if (running) return;
@@ -735,15 +739,20 @@ export default function Experience({
       }
       const main = el.querySelector("main")!;
       const journal = main.innerHTML;
+      let unbindRuns:()=>void=()=>{};
       function bindTabs() {
         main.querySelectorAll('button[role="tab"]').forEach((b) =>
           b.addEventListener("click", () => {
             const memory = text(b) === "My memory";
+            unbindRuns();
             main.innerHTML = memory ? controlSnapshots.runs.memory : journal;
+            unbindRuns=memory?()=>{}:initRunsInteractions(main);
             bindTabs();
           }),
         );
       }
+      unbindRuns=initRunsInteractions(main);
+      cleanup.push(()=>unbindRuns());
       bindTabs();
     }
     return () => {
@@ -798,7 +807,7 @@ export default function Experience({
               placeholder="Search the docs, plan a task, or jump to a page"
               onKeyDown={(e) => {
                 if (e.key === "Enter")
-                  location.href = "/ask?task=" + encodeURIComponent(q);
+                  location.href = results.length && q.trim() ? "/" + results[0].toLowerCase() : "/ask?task=" + encodeURIComponent(q);
                 if (e.key === "ArrowDown") {
                   e.preventDefault();
                   (e.currentTarget.nextElementSibling as HTMLElement)?.focus();

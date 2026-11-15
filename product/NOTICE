@@ -1,0 +1,30 @@
+switchboardx
+============
+
+Original source code: MIT License (see LICENSE).
+
+Bundled data files:
+
+- data/catalog.starter.json: tool graph data derived from the public graph
+  published at https://switchhboard.vercel.app, this project's own website
+  (ownership confirmed by the author). The catalog describes third-party MCP
+  servers; their tool names, descriptions and schemas remain the property of
+  their respective authors.
+
+- data/catalog.official.json: ingested from the live tools/list output of the
+  official MCP reference servers (@modelcontextprotocol/server-filesystem,
+  server-memory, server-sequential-thinking, server-everything),
+  github.com/modelcontextprotocol/servers. That project is under a licensing
+  transition: code contributions are MIT License or Apache License 2.0
+  depending on contribution; see the LICENSE at that repository. Both
+  licenses permit redistribution with attribution, provided here.
+
+Runtime dependency:
+
+- neo4j-driver (Apache License 2.0), used to speak Bolt to HydraDB.
+
+External server (not bundled, run separately):
+
+- HydraDB (github.com/hydra-db/hydradb) is licensed AGPL-3.0. switchhboard-mcp
+  connects to it as a client over Bolt or HTTPS; HydraDB is not distributed
+  with this package.

@@ -228,7 +228,7 @@ export function drawPlan(
   const update = () =>
     viewport.style.setProperty(
       "transform",
-      `translate(${px}px ${py}px) scale(${scale})`,
+      `translate(${px}px, ${py}px) scale(${scale})`,
       "important",
     );
   const fitNow = () => {

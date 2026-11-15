@@ -1,0 +1,57 @@
+{
+  "name": "switchhboard-mcp",
+  "version": "0.1.0",
+  "description": "Graph-connected MCP tools: expose only the tools a task calls, in call order. Plans against a typed tool graph, skips calls for values you already hold, and blocks private-data + untrusted-input + send-out chains before they run.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "switchhboard-mcp": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "data",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test",
+    "bench": "npm run build && node bench/bench.mjs",
+    "ingest": "node dist/cli.js ingest",
+    "serve": "node dist/cli.js serve",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "js-tiktoken": "^1.0.12",
+    "neo4j-driver": "^6.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "typescript": "^5.6.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "tools",
+    "agent",
+    "graph",
+    "planner",
+    "llm",
+    "context",
+    "prompt-injection",
+    "guard"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ramnnn2006/switchboardx.git"
+  },
+  "homepage": "https://switchhboard.vercel.app"
+}

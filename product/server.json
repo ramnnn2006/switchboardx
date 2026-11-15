@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.ramnnn2006/switchboardx",
+  "description": "Graph-connected MCP tools: expose only the tools a task calls, in call order. Plans against a typed tool graph, skips calls for values you already hold, and blocks private-data + untrusted-input + send-out chains before they run.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/ramnnn2006/switchboardx",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "switchhboard-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

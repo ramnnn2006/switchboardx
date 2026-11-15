@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 import "./rebuild.css";
 export const metadata: Metadata = {
-  title: "Switchboard · stop loading every tool",
-  description: "An MCP server that picks your agent's tools.",
+  metadataBase: new URL("https://switchboardx.vercel.app"),
+  title: { default: "Switchboard | Stop loading every tool", template: "%s | Switchboard" },
+  description: "Explore a graph of 420 MCP tools. Plan tool calls in dependency order, inspect schemas and test risky-chain checks. HydraDB integration is in progress.",
+  applicationName: "Switchboard",
+  openGraph: { type:"website", siteName:"Switchboard", title:"Switchboard: stop loading every tool", description:"Graph-based MCP tool planning, typed context and risky-chain checks.", images:[{url:"/og-switchboard.jpg",width:1200,height:630,alt:"Switchboard. Stop loading every tool."}] },
+  twitter:{card:"summary_large_image",title:"Switchboard: stop loading every tool",description:"Graph-based MCP tool planning and agent context.",images:["/og-switchboard.jpg"]},
+  icons:{icon:"/switchboard-icon.svg"},
 };
 export default function RootLayout({
   children,
