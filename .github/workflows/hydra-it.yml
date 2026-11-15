@@ -21,9 +21,35 @@ jobs:
           ref: ${{ env.HYDRADB_REF }}
           path: hydradb
 
+      # Native build deps mirror hydra-db/hydradb v0.4.0's own Dockerfile
+      # (chef stage): libcypher-parser-dev is what libcypher-parser-sys
+      # pkg-configs for; libgraphblas-dev + the LAGraph static archive below
+      # are what src/sparse_kernel/lagraph.rs links against.
+      - name: Install native build dependencies (mirror official Dockerfile)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ca-certificates clang cmake curl libclang-dev \
+            libcypher-parser-dev libffi-dev libgraphblas-dev pkg-config
+
+      # LAGraph has no Ubuntu package; hydra-db builds it statically via
+      # scripts/install_lagraph.sh (pinned tag + sha256 inside the script).
+      # Cached: it changes only with HYDRADB_REF.
+      - name: Cache LAGraph static archive
+        uses: actions/cache@v4
+        with:
+          path: /opt/lagraph
+          key: lagraph-${{ env.HYDRADB_REF }}
+
+      - name: Build LAGraph (per official Dockerfile)
+        run: |
+          if [ ! -f /opt/lagraph/lib/liblagraph.a ]; then
+            sudo bash hydradb/scripts/install_lagraph.sh /opt/lagraph
+          fi
+
       - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.91.0
+          toolchain: 1.99.0
 
       - uses: actions/cache@v4
         with:
@@ -35,6 +61,8 @@ jobs:
 
       - name: Build graph-node (local development server)
         working-directory: hydradb
+        env:
+          LAGRAPH_LIB_DIR: /opt/lagraph/lib
         run: cargo build --locked --features server-runtime --bin graph-node
 
       - name: Start graph-node (CLOUD_PROVIDER=local)
