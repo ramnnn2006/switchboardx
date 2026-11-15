@@ -29,8 +29,8 @@ jobs:
           git config user.email "$(git log -1 --format=%ae)"
           python3 - <<'PY'
           import pathlib,zipfile,hashlib
-          archive=next(pathlib.Path('.').glob('*switchboard-next-delta.zip'))
-          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='07834a965913b97796c7dda1f021543d21992f7cc91a626e87b47b97a8b5a49d'
+          archive=next(pathlib.Path('.').glob('*switchboard-product-seo.zip'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='fc4b2d0d51ce9f4893b8e99beb9ecacf57ea6cdece09a891ea0d1ba35fd92e87'
           with zipfile.ZipFile(archive) as z:
               for info in z.infolist():
                   p=pathlib.PurePosixPath(info.filename)
@@ -39,7 +39,7 @@ jobs:
               z.extractall('.')
           archive.unlink()
           PY
-          git add app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-next-delta.zip'
-          git commit -m "Restore motion, mobile planner and accurate setup states"
+          git add product .github/workflows/hydra-it.yml app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-product-seo.zip'
+          git commit -m "Add Hydra product verification, brand assets, SEO and state fixes"
           git push origin "HEAD:$BRANCH"
           rm -f "$RUNNER_TEMP/askpass"
