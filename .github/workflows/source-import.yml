@@ -29,8 +29,8 @@ jobs:
           git config user.email "$(git log -1 --format=%ae)"
           python3 - <<'PY'
           import pathlib,zipfile,hashlib
-          archive=next(pathlib.Path('.').glob('*switchboard-product-seo.zip'))
-          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='fc4b2d0d51ce9f4893b8e99beb9ecacf57ea6cdece09a891ea0d1ba35fd92e87'
+          archive=next(pathlib.Path('.').glob('*switchboard-deploy-contrast.zip'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='65ef24642ddcbcf1681f0e206f8334d407564cd14931d8db3fde775d4afa5efe'
           with zipfile.ZipFile(archive) as z:
               for info in z.infolist():
                   p=pathlib.PurePosixPath(info.filename)
@@ -39,7 +39,7 @@ jobs:
               z.extractall('.')
           archive.unlink()
           PY
-          git add product .github/workflows/hydra-it.yml app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-product-seo.zip'
-          git commit -m "Add Hydra product verification, brand assets, SEO and state fixes"
+          git add product .github/workflows/docker-images.yml app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-deploy-contrast.zip'
+          git commit -m "Add deployment artifacts and fix dark client tab contrast"
           git push origin "HEAD:$BRANCH"
           rm -f "$RUNNER_TEMP/askpass"
