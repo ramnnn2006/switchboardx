@@ -1,0 +1,18 @@
+{
+  "Claude Code": {
+    "caption": "terminal",
+    "code": "# After npm publication\nclaude mcp add --transport stdio switchboardx -- npx -y switchboardx\nclaude mcp list"
+  },
+  "Claude Desktop": {
+    "caption": "claude_desktop_config.json",
+    "code": "{\n  \"mcpServers\": {\n    \"switchboardx\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchboardx\"\n      ]\n    }\n  }\n}"
+  },
+  "Codex": {
+    "caption": "~/.codex/config.toml",
+    "code": "[mcp_servers.switchboardx]\ncommand = \"npx\"\nargs = [\"-y\", \"switchboardx\"]"
+  },
+  "Cursor": {
+    "caption": ".cursor/mcp.json",
+    "code": "{\n  \"mcpServers\": {\n    \"switchboardx\": {\n      \"type\": \"stdio\",\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchboardx\"\n      ]\n    }\n  }\n}"
+  }
+}

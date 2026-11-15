@@ -58,6 +58,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{__html:`if(location.pathname==='/'){const image=new Image();image.src='/photos/tuscan-meadow.webp';Promise.allSettled([document.fonts.load('700 100px display'),document.fonts.load('400 18px Geist'),image.decode()]).then(()=>document.documentElement.removeAttribute('data-visual'))}`}} />
       </head>
       <body className="grain min-h-screen flex flex-col bg-paper text-ink">
+        <div className="component-loading" role="status"><svg width="20" height="24" viewBox="0 0 22 26" aria-hidden="true"><path d="M2 2L3 22L9 16L14 25L18 23L13 14L21 13Z" fill="#d9f94a" stroke="#1f2a1c" strokeWidth="1.5"/></svg><span>Preparing components...</span></div>
         {children}
       </body>
     </html>

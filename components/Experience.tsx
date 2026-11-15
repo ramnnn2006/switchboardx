@@ -9,9 +9,10 @@ import introMarkup from "../data/intro-markup.json";
 import { playIntro } from "../lib/intro";
 import { startTour } from "../lib/tour";
 import { mountGalaxy, type GalaxyFilter } from "../lib/galaxy";
-import { animateGuard } from "../lib/guard-motion";
+import { animateGuard, resetGuard } from "../lib/guard-motion";
 import { mountHomeDemo } from "../lib/home-demo";
 import { mountScrollMotion } from "../lib/scroll-motion";
+import docClientConfigs from "../data/doc-client-configs.json";
 import controlSnapshots from "../data/control-snapshots.json";
 import guardScenarios from "../data/guard-scenarios.json";
 type Node = (typeof galaxy.nodes)[number];
@@ -50,7 +51,9 @@ export default function Experience({
   html: string;
 }) {
   const root = useRef<HTMLDivElement>(null);
-  const [cmd, setCmd] = useState(false),
+  const [tourInvite, setTourInvite] = useState(false);
+  const [menu, setMenu] = useState(false),
+    [cmd, setCmd] = useState(false),
     [q, setQ] = useState(""),
     [tour, setTour] = useState(-1),
     [toast, setToast] = useState(""),
@@ -84,6 +87,7 @@ export default function Experience({
     const all = (s: string) => Array.from(el.querySelectorAll(s));
     const text = (n: Element) => n.textContent?.trim() || "";
     all("button").forEach((b) => {
+      if (b.getAttribute("aria-label") === "Open menu") on(b, "click", () => setMenu(x => !x));
       if (b.getAttribute("aria-label")?.includes("mode"))
         on(b, "click", () => {
           const dark = !document.documentElement.classList.contains("dark");
@@ -128,7 +132,7 @@ export default function Experience({
       if (text(b) === "Copy prompt")
         on(b, "click", () => {
           navigator.clipboard.writeText(
-            "Connect Switchboard as an MCP server: npx -y switchhboard-mcp. Ask it for the tools each task needs, in call order.",
+            "Switchboardx npm publication is pending. Once switchboardx is published, add the stdio MCP server using command npx and args [-y, switchboardx]. It exposes plan, report_run and catalog_stats. Planning runs in process, without HydraDB. Do not install similarly named packages.",
           );
           notify("Agent connection prompt copied");
         });
@@ -140,6 +144,7 @@ export default function Experience({
       }
       if (e.key === "Escape") {
         setCmd(false);
+        setMenu(false);
         setTour(-1);
         setNode(null);
       }
@@ -173,6 +178,10 @@ export default function Experience({
     cleanup.push(mountScrollMotion(el, route));
     // Finite landing component assembly, followed by original scroll parallax.
     if (route === "home") {
+      const invite = () => { if(!localStorage.getItem("sb-tour-dismissed")) setTourInvite(true); };
+      window.addEventListener("sb-intro-finished", invite);
+      cleanup.push(() => window.removeEventListener("sb-intro-finished", invite));
+      if(sessionStorage.getItem("sb-intro-seen") || matchMedia("(prefers-reduced-motion: reduce)").matches) { const timer = setTimeout(invite,1500); cleanup.push(()=>clearTimeout(timer)); }
       cleanup.push(mountHomeDemo(el));
       const hero = el.querySelector("main > section") as HTMLElement;
       if (hero) {
@@ -348,7 +357,32 @@ export default function Experience({
           render.remove();
         });
         if (route === "explore") {
-          const apply = () => controller?.setFilter({ ...filter });
+          let list: HTMLDivElement | null = null;
+          const nearTools = new Set(galaxy.nearDup.flat());
+          const riskNames: Record<string,string> = { reads_private: "reads private data", ingests_untrusted: "ingests untrusted content", exfil_sink: "can exfiltrate", destructive: "destructive" };
+          const renderList = () => {
+            if (!list) return;
+            list.replaceChildren();
+            const table = document.createElement("table");
+            table.className = "catalog-table";
+            table.innerHTML = '<caption class="sr-only">All tools in the catalog</caption><thead><tr><th>tool</th><th>server</th><th>consumes</th><th>yields</th><th>risk</th><th>degree</th></tr></thead>';
+            const body = document.createElement("tbody");
+            galaxy.nodes.filter(n => n.kind === "tool" && (!filter.server || n.server === filter.server) && (!filter.query || n.label.toLowerCase().includes(filter.query.toLowerCase())) && (!filter.risk || ("risk" in n && n.risk?.includes(filter.risk))) && (!filter.nearDup || nearTools.has(n.id))).forEach(n => {
+              const row = document.createElement("tr");
+              const name = document.createElement("td"), button = document.createElement("button");
+              button.textContent = n.label;
+              button.onclick = () => setNode(n);
+              name.append(button); row.append(name);
+              [n.server, "consumes" in n ? n.consumes?.join(", ") : "", "yields" in n ? n.yields?.join(", ") : ""].forEach(value => { const td = document.createElement("td"); td.textContent = value || ""; row.append(td); });
+              const risk = document.createElement("td");
+              if ("risk" in n) n.risk?.forEach(flag => { const icon = el.querySelector(`main svg[aria-label="${riskNames[flag]}"]`)?.cloneNode(true) as SVGSVGElement | undefined; if(icon) { icon.setAttribute("width","13"); icon.setAttribute("height","13"); risk.append(icon); } });
+              row.append(risk);
+              const degree = document.createElement("td"); degree.textContent = String(n.degree); row.append(degree); body.append(row);
+            });
+            table.append(body); list.append(table);
+          };
+          const apply = () => { controller?.setFilter({ ...filter }); renderList(); };
+          const markActive = (b: Element, active: boolean) => { b.setAttribute("aria-pressed", String(active)); b.classList.toggle("catalog-filter-active", active); };
           all("main button").forEach((b) => {
             const s = text(b);
             const server = galaxy.servers.find(
@@ -360,7 +394,8 @@ export default function Experience({
                 filter.server
                   ? controller?.focusServer(filter.server)
                   : apply();
-                b.setAttribute("aria-pressed", String(!!filter.server));
+                apply();
+                all("main button").filter(x => galaxy.servers.some(server => text(x) === server.id + " " + server.tools)).forEach(x => markActive(x, x === b && !!filter.server));
               });
             const flags: Record<string, string> = {
               "reads private data": "reads_private",
@@ -373,14 +408,14 @@ export default function Experience({
               on(b, "click", () => {
                 filter.risk = filter.risk === flags[s] ? "" : flags[s];
                 apply();
-                b.setAttribute("aria-pressed", String(!!filter.risk));
+                all("main button").filter(x => flags[text(x)]).forEach(x => markActive(x, x === b && !!filter.risk));
               });
             }
             if (s === "near-duplicates")
               on(b, "click", () => {
                 filter.nearDup = !filter.nearDup;
                 apply();
-                b.setAttribute("aria-pressed", String(!!filter.nearDup));
+                markActive(b, !!filter.nearDup);
               });
             if (s === "Galaxy")
               on(b, "click", () => {
@@ -392,27 +427,19 @@ export default function Experience({
               });
             if (s === "list view")
               on(b, "click", () => {
-                const current = host.querySelector(".local-tool-list");
-                if (current) {
-                  current.remove();
+                if (list) {
+                  list.remove(); list = null;
                   render.style.visibility = "visible";
+                  b.lastChild!.textContent = "list view";
+                  b.setAttribute("aria-pressed", "false");
                   return;
                 }
                 render.style.visibility = "hidden";
-                const list = document.createElement("div");
+                list = document.createElement("div");
                 list.className = "local-tool-list";
-                list.style.cssText =
-                  "position:absolute;inset:0;overflow:auto;padding:20px;background:#1f2a1c;z-index:5";
-                galaxy.nodes
-                  .filter((n) => n.kind === "tool")
-                  .forEach((n) => {
-                    const button = document.createElement("button");
-                    button.textContent = n.server + " / " + n.label;
-                    button.style.cssText =
-                      "display:block;padding:10px 16px;width:100%;text-align:left;border-bottom:1px solid #9db08a33;font:12px monospace";
-                    button.onclick = () => setNode(n);
-                    list.append(button);
-                  });
+                b.lastChild!.textContent = "galaxy";
+                b.setAttribute("aria-pressed", "true");
+                renderList();
                 host.append(list);
               });
           });
@@ -436,10 +463,11 @@ export default function Experience({
       all("main button").forEach((b) => {
         if (scenarioNames.includes(text(b)))
           on(b, "click", () => {
+            resetGuard(el);
             preset = scenarioNames.indexOf(text(b));
             all("main button")
               .filter((x) => scenarioNames.includes(text(x)))
-              .forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+              .forEach((x) => { x.setAttribute("aria-pressed", String(x === b)); (x as HTMLElement).style.setProperty("background",x===b?"#1f2a1c":"transparent","important"); (x as HTMLElement).style.setProperty("color",x===b?"#f4f0e3":"#1f2a1c","important"); });
             const scenario = guardScenarios[preset];
             const area = el.querySelector("textarea")!;
             area.value = scenario.area;
@@ -487,7 +515,18 @@ export default function Experience({
                   ["Private data", "Untrusted input", "Sends out"][i],
                 );
             });
-            notify(scenarioNames[preset] + " scenario selected");
+            running = false;
+            if (run) run.textContent = "Run it";
+            const chain = el.querySelector('svg[aria-label^="Chain"]');
+            const wrap=chain?.parentElement;
+            const message=wrap?.querySelector("p");
+            if(message) message.textContent="Press run to watch an unguarded agent build this chain.";
+            const badge=wrap?.querySelector(".absolute.right-4");
+            if(badge) badge.textContent="";
+            legCards.forEach(card => { (card as HTMLElement).style.background=""; (card as HTMLElement).style.color=""; (card as HTMLElement).style.opacity=""; });
+            updateLegCount();
+            const verdict=all("main p").find(p => /^(Blocked\.|Allowed\.)/.test(text(p)));
+            if(verdict) verdict.textContent=isBlocked()?"Blocked. The chain combines private data, attacker text and an outbound tool.":"Allowed. At least one risky leg is absent.";
           });
         const aria = b.getAttribute("aria-label") || "";
         if (
@@ -516,7 +555,14 @@ export default function Experience({
           has("Private data") && has("Untrusted input") && has("Sends out");
         return blocked;
       }
+      function updateLegCount() {
+        const labels = ["Private data", "Untrusted input", "Sends out"];
+        const count = labels.filter(label => all("main button[aria-label]").some(b => b.getAttribute("aria-label")?.endsWith(": " + label) && b.getAttribute("aria-pressed") === "true")).length;
+        const countLine = all("main p").find(p => /^\d\s+of 3 present/.test(text(p)));
+        if(countLine) countLine.textContent = `${count} of 3 present. ${count === 3 ? "The edge into the way out gets cut." : "No lethal trifecta. The chain runs."}`;
+      }
       function updateVerdict() {
+        updateLegCount();
         const blocked = isBlocked();
         const paras = all("main p");
         const verdict = paras.find(
@@ -540,11 +586,7 @@ export default function Experience({
           timeline.eventCallback("onComplete", () => {
             run!.textContent = "Run it";
             running = false;
-            notify(
-              blocked
-                ? "Blocked. The outbound step was cut. Demo only: nothing was read or sent."
-                : "Allowed. This demo runs only on the page; nothing was read or sent.",
-            );
+            // Outcome is shown in the diagram; do not obscure it with a toast.
           });
         } else {
           run!.textContent = "Run it";
@@ -608,6 +650,13 @@ export default function Experience({
       }
     }
     if (route === "docs") {
+      const links=all('a[href^="#"]');
+      const spy=new IntersectionObserver(entries => {
+        const entry=entries.filter(e=>e.isIntersecting).sort((a,b)=>a.boundingClientRect.top-b.boundingClientRect.top)[0];
+        if(!entry) return;
+        links.forEach(a=>{ const active=a.getAttribute("href")==="#"+entry.target.id; a.setAttribute("aria-current",active?"location":"false"); (a as HTMLElement).style.color=active?"#4e6b3a":""; (a as HTMLElement).style.fontWeight=active?"700":""; });
+      },{rootMargin:"-80px 0px -60% 0px"});
+      all('main section[id]').forEach(n=>spy.observe(n)); cleanup.push(()=>spy.disconnect());
       const configurations = [
         "Claude Code",
         "Claude Desktop",
@@ -616,26 +665,30 @@ export default function Experience({
       ];
       all('main button[role="tab"]').forEach((b) =>
         on(b, "click", () => {
-          const name = text(b),
-            snap = (
-              controlSnapshots.docs as Record<
-                string,
-                { html: string; text: string }[]
-              >
-            )[name];
-          if (!snap) return;
-          b.parentElement!.querySelectorAll("button").forEach((n) =>
-            n.setAttribute("aria-selected", String(n === b)),
-          );
-          const pre = all("main pre")[configurations.includes(name) ? 1 : 2];
-          if (pre)
-            pre.innerHTML = snap[configurations.includes(name) ? 1 : 2].html;
+          const name = text(b);
+          const config = (docClientConfigs as Record<string,{caption:string;code:string}>)[name];
+          b.parentElement!.querySelectorAll("button").forEach(n=>n.setAttribute("aria-selected",String(n===b)));
+          if(config) {
+            const pre=el.querySelector("#connect pre");
+            if(pre) {
+              pre.replaceChildren();
+              config.code.split("\n").forEach((line,i)=>{const row=document.createElement("div");row.className="cy-line flex gap-4";const num=document.createElement("span");num.className="w-5 shrink-0 text-right text-paper/25";num.textContent=String(i+1);const code=document.createElement("code");code.className="whitespace-pre";code.textContent=line;row.append(num,code);pre.append(row);});
+              const caption=pre.parentElement?.querySelector("div > span");if(caption)caption.textContent=config.caption;
+            }
+            return;
+          }
+          const snapshots=(controlSnapshots.docs as Record<string,{html:string;text:string}[]>)[name];
+          const pre=all("main pre")[2];
+          if(pre && snapshots?.[2])pre.innerHTML=snapshots[2].html;
         }),
       );
     }
     if (route === "login" || route === "signup") {
       const form = el.querySelector("main form");
-      form?.querySelector("button[type=submit]")?.removeAttribute("disabled");
+      const submit = form?.querySelector("button[type=submit]") as HTMLButtonElement | null;
+      const validForm = () => { if(submit) submit.disabled = !Array.from(form!.querySelectorAll("input")).every(input => input.checkValidity()); };
+      on(form, "input", validForm);
+      validForm();
       on(form, "submit", (e) => {
         e.preventDefault();
         notify(
@@ -732,6 +785,8 @@ export default function Experience({
           />,
           slot,
         )}
+      {tourInvite && <aside className="new-user-tour" aria-label="New user tour"><span>New here? Take a<br/>30-second tour.</span><button onClick={()=>{setTourInvite(false);localStorage.setItem("sb-tour-dismissed","1");}}>No thanks</button><button onClick={()=>{setTourInvite(false);localStorage.setItem("sb-tour-dismissed","1");startTour();}}>Take the tour</button></aside>}
+      {menu && <div className="mobile-menu-overlay"><header><a href="/">Switchboard</a><button aria-label="Close menu" onClick={()=>setMenu(false)}>×</button></header><nav>{routes.map(r=><a key={r} href={"/"+r.toLowerCase()} style={{color:route===r.toLowerCase()?"#d9f94a":undefined}}>{r}</a>)}</nav><a className="mobile-plan" href="/ask">Plan a task</a></div>}
       {cmd && (
         <div className="cmd-overlay" onClick={() => setCmd(false)}>
           <div
@@ -781,6 +836,7 @@ export default function Experience({
                 </small>
               </a>
             ))}
+            {q && <><p className="cmd-group">Docs</p>{Object.entries({quick:"Quickstart",connect:"Connect your agent",point:"Call the API directly",contract:"The plan contract",servers:"Add your own servers",guard:"Risk flags and the guard",oss:"Where it runs",credits:"Credits and licences"}).filter(([id,label])=>(id+" "+label).toLowerCase().includes(q.toLowerCase())).map(([id,label])=><a className="cmd-result" key={id} href={"/docs#"+id}>{label}<small style={{float:"right",opacity:.5}}>Docs ↗</small></a>)}<p className="cmd-group">Plan a task</p></>}
             {q && (
               <a
                 href={"/ask?task=" + encodeURIComponent(q)}

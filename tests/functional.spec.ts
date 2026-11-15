@@ -77,9 +77,7 @@ test("guard flag matrix and demo run", async ({ page }) => {
     .click();
   await expect(page.locator("main")).toContainText("Blocked.");
   await page.getByRole("button", { name: "Run it", exact: true }).click();
-  await expect(page.locator(".local-toast")).toContainText(
-    "nothing was read or sent",
-  );
+  await expect(page.locator('svg[aria-label^="Chain"]').locator(".." )).toContainText("Cut before it runs");
 });
 test("planner stickers, schemas, local run report", async ({ page }) => {
   await page.goto(
@@ -116,10 +114,11 @@ test("explore webgl, search, filters and list", async ({ page }) => {
     .click();
   await page.getByRole("button", { name: "list view", exact: true }).click();
   await expect(page.locator(".local-tool-list")).toBeVisible();
-  await page
-    .locator(".local-tool-list button")
-    .filter({ hasText: "github / create_pull_request" })
-    .click();
+  await expect(page.locator(".catalog-table th")).toHaveCount(6);
+  await expect(page.locator(".catalog-table tbody tr")).toHaveCount(0);
+  await page.getByRole("button", { name: "reads private data", exact: true }).click();
+  await expect(page.locator(".catalog-table tbody tr")).toHaveCount(1);
+  await page.locator(".local-tool-list button").filter({ hasText: "create_pull_request" }).click();
   await expect(page.locator(".graph-panel")).toContainText(
     "create_pull_request",
   );

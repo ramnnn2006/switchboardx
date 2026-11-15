@@ -67,6 +67,7 @@ export function playIntro(hero: HTMLElement, _markup: string): () => void {
     timeline.kill();
     clear();
     sessionStorage.setItem("sb-intro-seen", "1");
+    window.dispatchEvent(new Event("sb-intro-finished"));
   };
   const base = hero.getBoundingClientRect();
   const bounds = targets.map((node) => node.getBoundingClientRect());
