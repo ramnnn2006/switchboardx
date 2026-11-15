@@ -1,0 +1,104 @@
+name: hydra-integration
+# Live verification: builds the real HydraDB server (github.com/hydra-db/hydradb,
+# AGPL-3.0, pinned tag), starts it with the local-directory provider, and runs the
+# product's live integration suite against it over Bolt. No docker, no services.
+on:
+  workflow_dispatch:
+
+env:
+  HYDRADB_REF: v0.4.0
+
+jobs:
+  live-it:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hydra-db/hydradb
+          ref: ${{ env.HYDRADB_REF }}
+          path: hydradb
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.91.0
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            hydradb/target
+          key: hydradb-${{ env.HYDRADB_REF }}-${{ hashFiles('hydradb/Cargo.lock') }}
+
+      - name: Build graph-node (local development server)
+        working-directory: hydradb
+        run: cargo build --locked --features server-runtime --bin graph-node
+
+      - name: Start graph-node (CLOUD_PROVIDER=local)
+        working-directory: hydradb
+        run: |
+          mkdir -p .hydradb/store .hydradb/cache
+          printf '%s\n' 'local-development-token-32-bytes' > .hydradb/auth-token
+          export CLOUD_PROVIDER=local
+          export LOCAL_PATH="$PWD/.hydradb/store"
+          export GRAPH_NAMESPACE=default
+          export GRAPH_ID=default
+          export GRAPH_CELL_ID=cell-0
+          export GRAPH_CELLS=cell-0
+          export GRAPH_NODE_ID=node-0
+          export GRAPH_BOLT_NODE_ADDRESSES=node-0=127.0.0.1:7687
+          export GRAPH_ADVERTISED_BOLT_ADDR=127.0.0.1:7687
+          export GRAPH_DATA_CACHE_DIR="$PWD/.hydradb/cache"
+          export GRAPH_AUTH_TOKEN_FILE="$PWD/.hydradb/auth-token"
+          export GRAPH_ALLOW_PLAINTEXT=true
+          export RUST_MIN_STACK=33554432
+          nohup target/debug/graph-node > graph-node.log 2>&1 &
+          echo $! > graph-node.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8443/healthz 2>/dev/null | grep -q ok; then echo "graph-node healthy"; exit 0; fi
+            sleep 2
+          done
+          echo "graph-node did not become healthy"; tail -50 graph-node.log; exit 1
+
+      - name: Smoke-check the server (Bolt-independent HTTP query)
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8443/v1/graphs/default/query \
+            -H "Authorization: Bearer local-development-token-32-bytes" \
+            -H 'Content-Type: application/json' \
+            --data '{"cell_id":"cell-0","query":"MERGE (a {id: 999999})-[:SMOKE]->(b {id: 999998})"}'
+          curl -fsS -X POST http://127.0.0.1:8443/v1/graphs/default/query \
+            -H "Authorization: Bearer local-development-token-32-bytes" \
+            -H 'Content-Type: application/json' \
+            --data '{"cell_id":"cell-0","query":"MATCH (a {id: 999999}) DETACH DELETE a"}'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build product and run unit tests
+        working-directory: product
+        run: |
+          npm ci
+          npm test
+
+      - name: Run live HydraDB integration suite
+        working-directory: product
+        env:
+          HYDRA_BOLT_URL: bolt://127.0.0.1:7687
+          HYDRA_TOKEN: local-development-token-32-bytes
+        run: node --test test/hydra.live.it.mjs
+
+      - name: Run the learning-curve experiment against live HydraDB
+        working-directory: product
+        env:
+          HYDRA_BOLT_URL: bolt://127.0.0.1:7687
+          HYDRA_TOKEN: local-development-token-32-bytes
+        run: node bench/learning.mjs
+
+      - name: Stop graph-node
+        if: always()
+        working-directory: hydradb
+        run: kill "$(cat graph-node.pid)" 2>/dev/null || true
