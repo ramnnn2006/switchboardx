@@ -29,8 +29,8 @@ jobs:
           git config user.email "$(git log -1 --format=%ae)"
           python3 - <<'PY'
           import pathlib,zipfile,hashlib
-          archive=next(pathlib.Path('.').glob('*switchboard-source.zip'))
-          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='0030edb2ee4ce44c5c38218a90b3a71a0041d470f4b6031f6d508f4eaedf62df'
+          archive=next(pathlib.Path('.').glob('*switchboard-delta-source.zip'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='5ef66110ec99fdff66cd94bf6b33e3f7d3a903e1d2b65960b03125326d68ef94'
           with zipfile.ZipFile(archive) as z:
               for info in z.infolist():
                   p=pathlib.PurePosixPath(info.filename)
@@ -39,7 +39,7 @@ jobs:
               z.extractall('.')
           archive.unlink()
           PY
-          git add app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-source.zip'
-          git commit -m "Import working website source and local interaction implementation"
+          git add app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-delta-source.zip'
+          git commit -m "Fix mobile navigation, client docs, catalog table and guard motion"
           git push origin "HEAD:$BRANCH"
           rm -f "$RUNNER_TEMP/askpass"
