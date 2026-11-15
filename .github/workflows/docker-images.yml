@@ -1,0 +1,65 @@
+name: docker-images
+# Builds the images the free hosting blueprint (deploy/render.yaml) pulls:
+#  - ghcr.io/<owner>/hydradb-graph-node        : hydra-db/hydradb's own Dockerfile,
+#    graph-node stage, pinned tag (AGPL-3.0, run as a separate service) - base
+#  - ghcr.io/<owner>/hydradb-graph-node-render : base + deploy/entrypoint.hydradb.sh
+#    (token-file + listener env glue for Render) - this is what render.yaml pulls
+#  - ghcr.io/<owner>/switchhboard-mcp-api      : this product's HTTP API
+# The repo root contains product/ (this package); the workflow runs at repo root.
+on:
+  workflow_dispatch:
+
+env:
+  HYDRADB_REF: v0.4.0
+
+jobs:
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: hydra-db/hydradb
+          ref: ${{ env.HYDRADB_REF }}
+          path: hydradb
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push HydraDB graph-node base image
+        uses: docker/build-push-action@v6
+        with:
+          context: hydradb
+          target: graph-node
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/hydradb-graph-node:${{ env.HYDRADB_REF }}
+          cache-from: type=gha,scope=hydradb
+          cache-to: type=gha,scope=hydradb,mode=max
+
+      - name: Build + push HydraDB Render wrapper image
+        uses: docker/build-push-action@v6
+        with:
+          context: product/deploy
+          file: product/deploy/Dockerfile.hydradb-render
+          build-args: HYDRADB_IMAGE=ghcr.io/${{ github.repository_owner }}/hydradb-graph-node:${{ env.HYDRADB_REF }}
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/hydradb-graph-node-render:${{ env.HYDRADB_REF }},ghcr.io/${{ github.repository_owner }}/hydradb-graph-node-render:latest
+
+      - name: Build + push product API image
+        uses: docker/build-push-action@v6
+        with:
+          context: product
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/switchhboard-mcp-api:latest
+          cache-from: type=gha,scope=product
+          cache-to: type=gha,scope=product,mode=max
