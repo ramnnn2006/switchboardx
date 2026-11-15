@@ -8,7 +8,7 @@ import recorded from "../data/recorded-plans.json";
 import catalog from "../data/catalog.json";
 import { plan } from "../lib/planner";
 import { bindStickerDrag } from "../lib/sticker-drag";
-import { drawPlan } from "../lib/plan-diagram";
+import { drawPlan, serverColor, serverIconSvg } from "../lib/plan-diagram";
 export default function Planner({
   task,
   budget = 4000,
@@ -149,6 +149,81 @@ export default function Planner({
       if (t && mappings[t])
         n.textContent = n.textContent!.replace(t, mappings[t]);
     }
+    // Token receipt: pin the big number, the preload total and the savings
+    // percentage to the plan's real values. The captured template hard-codes
+    // "14,731", which the static "304"/"313" mappings above cannot reach.
+    {
+      const preload = record?.tokens?.preload_all ?? 110238;
+      const pct = Array.from(el.querySelectorAll("b")).find((b) =>
+        /fewer tokens$/.test(b.textContent?.trim() || ""),
+      );
+      const vsLine = pct?.parentElement;
+      const numBlock = vsLine?.previousElementSibling;
+      const big = numBlock?.querySelector(".tabular-nums") || numBlock;
+      const pre = vsLine?.querySelector(".tabular-nums");
+      if (big) big.textContent = result.tokens.toLocaleString();
+      if (pre) pre.textContent = preload.toLocaleString();
+      if (pct)
+        pct.textContent =
+          ((1 - result.tokens / preload) * 100).toFixed(1) + "% fewer tokens";
+    }
+    // Compare top-k cards, as on the original when Compare top-k is on. The
+    // Vector search column is the recorded BM25 baseline (real tools, real
+    // token count, real missing prerequisite); the Switchboard column is the
+    // current plan in call order.
+    let compare = el.querySelector("[data-local-compare]") as HTMLElement | null;
+    if (!compare) {
+      const stepsHeading = Array.from(
+        el.querySelectorAll("span.mono-label"),
+      ).find((n) => n.textContent?.trim() === "Steps");
+      const receipt = stepsHeading?.closest("div.relative.min-w-0");
+      if (receipt?.parentElement) {
+        compare = document.createElement("section");
+        compare.setAttribute("data-local-compare", "true");
+        compare.setAttribute("aria-label", "Top-k comparison");
+        compare.className = "mb-4 grid gap-4 md:grid-cols-2";
+        receipt.parentElement.insertBefore(compare, receipt);
+      }
+    }
+    if (compare) {
+      compare.classList.add("hidden");
+      const baseline = result.baseline;
+      const chip = (server: string, label: string) =>
+        `<span class="sticker inline-flex items-center gap-1.5 px-2 py-1 font-mono text-[10px] leading-none text-ink" data-tool="${server}/${label}" style="background:${serverColor(server)}">` +
+        `<span class="opacity-75">${serverIconSvg(server, 12)}</span>` +
+        `<span class="font-bold">${label}</span></span>`;
+      const vectorTools = baseline
+        ? baseline.tools.map((t) => {
+            const [server, label] = [
+              t.server_id,
+              t.tool_id.replace(/^[^.]+\./, ""),
+            ];
+            return chip(server, label);
+          })
+        : [];
+      const missing = baseline?.missing?.[0];
+      compare.innerHTML =
+        `<div class="relative rounded-xl border border-ink/15 bg-card p-4 shadow-stack">` +
+        `<div class="flex items-baseline justify-between"><span class="mono-label text-moss">Vector search</span><span class="mono-label tabular-nums">${(baseline?.tokens ?? 0).toLocaleString()} tokens</span></div>` +
+        `<div class="mt-3 flex flex-wrap gap-2">${vectorTools.join("")}</div>` +
+        (missing
+          ? `<div class="stamp mt-4 inline-block -rotate-3 text-tomato">Missing prerequisite<span class="mt-1 block text-[10px] normal-case tracking-normal">${missing.tool_id.replace(/^[^.]+\./, (m) => m.replace(".", "/"))}</span></div>`
+          : "") +
+        `<p class="mt-3 text-[12px] text-ink/60">No order. A prerequisite is missing.</p></div>` +
+        `<div class="rounded-xl border border-ink/15 bg-card p-4 shadow-stack">` +
+        `<div class="flex items-baseline justify-between"><span class="mono-label text-moss">Switchboard</span><span class="mono-label tabular-nums">${result.tokens.toLocaleString()} tokens</span></div>` +
+        `<div class="mt-3 flex flex-col gap-2">${result.steps
+          .map(
+            (s, i) =>
+              `<span class="sticker inline-flex w-fit items-center gap-2 px-2 py-1 font-mono text-[10px] leading-none text-ink" style="background:${serverColor(s.server)}">` +
+              `<span class="grid h-4 w-4 place-items-center rounded-full bg-ink text-[9px] font-bold text-lime">${i + 1}</span>` +
+              `<span class="opacity-75">${serverIconSvg(s.server, 12)}</span>` +
+              `<span class="font-bold">${s.label}</span></span>`,
+          )
+          .join("")}</div>` +
+        `<p class="mt-3 text-[12px] text-ink/60">In call order. Every input is produced by an earlier step.</p></div>`;
+      if (!baseline) compare.classList.add("hidden");
+    }
     const btns = Array.from(el.querySelectorAll("button"));
     btns.forEach((b) => {
       const s = text(b);
@@ -162,13 +237,21 @@ export default function Planner({
         on(b, "click", () =>
           setExclude((x) => [...x, b.getAttribute("aria-label")!.slice(8)]),
         );
+      if (s === "Compare top-k")
+        on(b, "click", () => {
+          const section = el.querySelector("[data-local-compare]");
+          if (section && result.baseline) section.classList.toggle("hidden");
+        });
       if (s === "copy")
         on(b, "click", () => {
           const id = b
             .getAttribute("aria-label")
             ?.replace(/^Copy | schema$/g, "");
+          const step = result.steps.find(
+            (x) => x.server + "/" + x.label === id,
+          );
           const data = id
-            ? (catalog as Record<string, unknown>)[id]
+            ? step?.schema || (catalog as Record<string, unknown>)[id]
             : record?.explain.cypher;
           navigator.clipboard.writeText(
             typeof data === "string"
@@ -199,6 +282,16 @@ export default function Planner({
           onReport();
         });
       }
+    });
+    // The Compare top-k toggle lives in the surrounding page chrome, outside
+    // this component's injected markup; bind it from the nearest main scope.
+    const barScope = el.closest("main");
+    barScope?.querySelectorAll("button").forEach((b) => {
+      if (b.textContent?.trim() === "Compare top-k")
+        on(b, "click", () => {
+          const section = el.querySelector("[data-local-compare]");
+          if (section && result.baseline) section.classList.toggle("hidden");
+        });
     });
     // Keep the exact reference card layout while binding its step cards to the current plan.
     if (
@@ -235,7 +328,9 @@ export default function Planner({
             copy.onclick = () =>
               navigator.clipboard.writeText(
                 JSON.stringify(
-                  (catalog as Record<string, unknown>)[step.id.slice(2)] || {},
+                  step.schema ||
+                    (catalog as Record<string, unknown>)[step.id.slice(2)] ||
+                    {},
                   null,
                   2,
                 ),
@@ -452,6 +547,7 @@ export default function Planner({
                     JSON.stringify(
                       result.steps.map(
                         (s) =>
+                          s.schema ||
                           (catalog as Record<string, unknown>)[
                             s.id.slice(2)
                           ] || {
@@ -501,12 +597,11 @@ export default function Planner({
                     }}
                   >
                     {JSON.stringify(
-                      (catalog as Record<string, unknown>)[s.id.slice(2)] || {
-                        name: s.label,
-                        description: s.desc,
-                        consumes: s.consumes,
-                        yields: s.yields,
-                      },
+                      s.schema ||
+                        (catalog as Record<string, unknown>)[s.id.slice(2)] || {
+                          name: s.label,
+                          description: s.desc,
+                        },
                       null,
                       2,
                     )}

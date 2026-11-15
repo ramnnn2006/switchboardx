@@ -6,6 +6,7 @@ export type GalaxyFilter = {
   risk?: string;
   query?: string;
   nearDup?: boolean;
+  path?: string[];
 };
 /** Same catalog, public coordinates and Sigma rendering family as the reference. */
 export async function mountGalaxy(
@@ -134,6 +135,7 @@ export async function mountGalaxy(
         if (key !== active && attributes.kind === "type")
           node.color = "#D9F94A";
       }
+      if(filters.path?.includes(key)){node.color="#D9F94A";node.zIndex=3;node.forceLabel=true;node.size=8;}
       if (attributes.kind === "server" && !faded) node.forceLabel = true;
       return node;
     },
@@ -157,6 +159,7 @@ export async function mountGalaxy(
       )
         edge.hidden = true;
       if (filters.risk) edge.hidden = true;
+      if(filters.path?.length){const path=new Set(filters.path);const adjacent=path.has(source)||path.has(target);edge.color=adjacent?"#D9F94A":"rgba(157,176,138,.08)";edge.size=adjacent?1.8:0.3;}
       return edge;
     },
   });

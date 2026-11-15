@@ -11,6 +11,7 @@ import { startTour } from "../lib/tour";
 import { mountGalaxy, type GalaxyFilter } from "../lib/galaxy";
 import { animateGuard, resetGuard } from "../lib/guard-motion";
 import { mountHomeDemo } from "../lib/home-demo";
+import { mountBenchMotion } from "../lib/bench-motion";
 import { mountScrollMotion } from "../lib/scroll-motion";
 import docClientConfigs from "../data/doc-client-configs.json";
 import controlSnapshots from "../data/control-snapshots.json";
@@ -71,6 +72,12 @@ export default function Experience({
     if (!root.current) return;
     const el = root.current;
     let cleanup: (() => void)[] = [];
+    if(route === "explore" && new URLSearchParams(location.search).get("embed") === "1") {
+      el.innerHTML = '<div aria-label="Whole catalog graph with current path highlighted" style="position:fixed;inset:0;background:#1f2a1c"></div>';
+      let disposed=false;let destroy:(()=>void)|undefined;
+      mountGalaxy(el.firstElementChild as HTMLElement,()=>{}).then(c=>{ if(disposed){c.destroy();return;}destroy=()=>c.destroy();c.setFilter({path:(new URLSearchParams(location.search).get("path")||"").split(",").filter(Boolean)}); });
+      return ()=>{disposed=true;destroy?.();};
+    }
     const stored = localStorage.getItem("sb-theme");
     if (stored) {
       document.documentElement.classList.toggle("dark", stored === "dark");
@@ -86,6 +93,15 @@ export default function Experience({
     };
     const all = (s: string) => Array.from(el.querySelectorAll(s));
     const text = (n: Element) => n.textContent?.trim() || "";
+    const copyText = async (value: string, success = "Copied") => {
+      try { await navigator.clipboard.writeText(value); notify(success); }
+      catch {
+        const field=document.createElement("textarea"); field.value=value;
+        field.style.cssText="position:fixed;left:-9999px;top:0"; document.body.append(field); field.select();
+        const copied=document.execCommand("copy");field.remove();
+        notify(copied?success:"Copy unavailable in this browser. Select the code to copy it.");
+      }
+    };
     all("button").forEach((b) => {
       if (b.getAttribute("aria-label") === "Open menu") on(b, "click", () => setMenu(x => !x));
       if (b.getAttribute("aria-label")?.includes("mode"))
@@ -112,29 +128,27 @@ export default function Experience({
         on(b, "click", () => startTour());
       if (text(b) === "Copy link")
         on(b, "click", () => {
-          navigator.clipboard.writeText(location.href);
-          notify("Link copied");
+          void copyText(location.href,"Link copied");
         });
       if (text(b) === "copy")
         on(b, "click", () => {
           const code = b
             .closest("div")
             ?.parentElement?.querySelector("pre,code");
-          navigator.clipboard.writeText(
+          void copyText(
             code?.querySelectorAll("code").length
               ? Array.from(code.querySelectorAll("code"))
                   .map((n) => n.textContent)
                   .join("\n")
               : code?.textContent || "",
           );
-          notify("Copied");
         });
       if (text(b) === "Copy prompt")
         on(b, "click", () => {
-          navigator.clipboard.writeText(
-            "Switchboardx npm publication is pending. Once switchboardx is published, add the stdio MCP server using command npx and args [-y, switchboardx]. It exposes plan, report_run and catalog_stats. Planning runs in process, without HydraDB. Do not install similarly named packages.",
+          void copyText(
+            "Switchhboard-mcp npm publication is pending. Once switchhboard-mcp is published, add the stdio MCP server using command npx and args [-y, switchhboard-mcp]. It exposes plan, report_run and catalog_stats. The current local build plans in process; the requested HydraDB backend is still being implemented and is not verified yet. Do not install similarly named packages.",
+            "Agent connection prompt copied",
           );
-          notify("Agent connection prompt copied");
         });
     });
     const key = (e: KeyboardEvent) => {
@@ -154,7 +168,7 @@ export default function Experience({
     gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
       if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        gsap.fromTo(
+        if(route !== "bench") gsap.fromTo(
           el.querySelectorAll(
             "main > div > header h1,main > div > section:first-child h1",
           ),
@@ -176,6 +190,10 @@ export default function Experience({
     }, el);
     cleanup.push(() => ctx.revert());
     cleanup.push(mountScrollMotion(el, route));
+    let activePage = true;
+    document.fonts.ready.then(() => { if(activePage) ScrollTrigger.refresh(); });
+    el.querySelectorAll("img").forEach(img => { if(!img.complete) on(img,"load",()=>ScrollTrigger.refresh()); });
+    cleanup.push(()=>{activePage=false;});
     // Finite landing component assembly, followed by original scroll parallax.
     if (route === "home") {
       const invite = () => { if(!localStorage.getItem("sb-tour-dismissed")) setTourInvite(true); };
@@ -595,31 +613,7 @@ export default function Experience({
       });
     }
     if (route === "bench") {
-      const kill = all("main button").find((b) =>
-        b.getAttribute("aria-label")?.startsWith("Kill the DB"),
-      );
-      if (kill) {
-        kill.removeAttribute("disabled");
-        on(kill, "click", () => {
-          if (kill.getAttribute("data-armed") !== "true") {
-            kill.setAttribute("data-armed", "true");
-            kill.setAttribute(
-              "aria-label",
-              "Run the local kill-recovery simulation",
-            );
-            kill.textContent = "ARMED · click to simulate";
-            notify("Local simulation armed. No database will be killed.");
-            return;
-          }
-          kill.textContent = "RECOVERING…";
-          setTimeout(() => {
-            kill.textContent = "ALIVE · recovered in 3.3s";
-            notify(
-              "Local demonstration recovered. The original recorded full recovery was 41s.",
-            );
-          }, 3300);
-        });
-      }
+      cleanup.push(mountBenchMotion(el));
       for (const b of all('main button[data-slot="accordion-trigger"]')) {
         const name = text(b),
           data = (controlSnapshots.bench as Record<string, { body?: string }>)[
@@ -677,9 +671,9 @@ export default function Experience({
             }
             return;
           }
-          const snapshots=(controlSnapshots.docs as Record<string,{html:string;text:string}[]>)[name];
-          const pre=all("main pre")[2];
-          if(pre && snapshots?.[2])pre.innerHTML=snapshots[2].html;
+          const apiCode: Record<string,string> = {"HTTP API": `curl http://127.0.0.1:8787/api/plan -H 'content-type: application/json' -d '{"task":"Find open login bugs in Linear"}'`, "MCP stdio": "# After npm publication\nnpx -y switchhboard-mcp", "Health check": "curl http://127.0.0.1:8787/api/health"};
+          const pre=el.querySelector("#point pre");
+          if(pre && apiCode[name])pre.textContent=apiCode[name];
         }),
       );
     }
@@ -689,6 +683,7 @@ export default function Experience({
       const validForm = () => { if(submit) submit.disabled = !Array.from(form!.querySelectorAll("input")).every(input => input.checkValidity()); };
       on(form, "input", validForm);
       validForm();
+      if(form){const status=document.createElement("p");status.setAttribute("role","status");status.className="mt-3 text-[13px] text-ink/70";status.textContent="Account service is not connected. No password will be sent or saved. You can skip sign-in and plan a task.";form.append(status);}
       on(form, "submit", (e) => {
         e.preventDefault();
         notify(

@@ -1,5 +1,6 @@
 import galaxy from "../data/galaxy.json";
 import recorded from "../data/recorded-plans.json";
+import catalog from "../data/catalog.json";
 export type Tool = {
   id: string;
   label: string;
@@ -14,9 +15,25 @@ export type Tool = {
   y: number;
   degree: number;
 };
+export type ToolSchema = {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+};
+export type Baseline = {
+  task: string;
+  k: number;
+  method: string;
+  tools: { tool_id: string; server_id: string; score: number | null }[];
+  missing: { tool_id: string; reason: string }[];
+  extra: string[];
+  tokens: number;
+  order: null;
+  note?: string;
+};
 export const tools = galaxy.nodes.filter((n) => n.kind === "tool") as Tool[];
 export const serverCounts = galaxy.servers;
-export type Step = Tool & { order: number };
+export type Step = Tool & { order: number; schema?: ToolSchema };
 export function guard(steps: Tool[]) {
   const flags = new Set(steps.flatMap((t) => t.risk || []));
   return flags.has("reads_private") &&
@@ -41,11 +58,14 @@ export function plan(
           schema_tokens: number;
           consumes: { type: string }[];
           yields: { type: string }[];
+          risk?: string[];
+          schema?: ToolSchema;
         }[];
         capabilities: string[];
-        tokens: { plan: number };
+        tokens: { plan: number; preload_all?: number; saved?: number };
         guard: { status: string };
       };
+      baseline?: Baseline;
     }
   >;
   const exact =
@@ -54,12 +74,18 @@ export function plan(
         (t) => t.trim().toLowerCase() === task.trim().toLowerCase(),
       ) || ""
     ];
-  if (exact && !held.length && !excluded.length) {
+  if (exact) {
+    // Replay the recorded plan. Held or excluded values adjust it: excluded
+    // tools leave the chain, and the token receipt is the sum of the real
+    // recorded per-step schema tokens, never a recomputed guess.
     const p = exact.plan;
-    return {
-      supported: true,
-      steps: p.steps.map((s, i) => {
-        const id = s.tool_id.replace(/^([a-z0-9-]+)\./, "$1/");
+    const idOf = (toolId: string) =>
+      toolId.replace(/^([a-z0-9-]+)\./, "$1/");
+    const missing = p.steps.map((s) => idOf(s.tool_id)).filter((id) => excluded.includes(id));
+    const steps = p.steps
+      .filter((s) => !excluded.includes(idOf(s.tool_id)) && !(s.yields?.length && s.yields.every(y=>held.includes(y.type))))
+      .map((s, i) => {
+        const id = idOf(s.tool_id);
         return {
           ...tools.find((t) => t.id === "t:" + id),
           id: "t:" + id,
@@ -69,12 +95,22 @@ export function plan(
           schemaTokens: s.schema_tokens,
           consumes: s.consumes?.map((c) => c.type),
           yields: s.yields?.map((y) => y.type),
-        };
-      }) as Step[],
-      guard: p.guard.status,
-      tokens: p.tokens.plan,
+          risk: s.risk ?? tools.find((t) => t.id === "t:" + id)?.risk ?? [],
+          schema: s.schema,
+        } as Step;
+      });
+    const pristine = !held.length && !excluded.length;
+    return {
+      supported: !missing.length,
+      missing,
+      steps,
+      guard: pristine ? p.guard.status : guard(steps),
+      tokens: pristine
+        ? p.tokens.plan
+        : steps.reduce((n, s) => n + (s.schemaTokens || 120), 0),
       capability: p.capabilities.join(", "),
-      source: "replay" as const,
+      baseline: exact.baseline ?? null,
+      source: pristine ? ("replay" as const) : ("recording" as const),
     };
   }
   let ids: string[] = [];
@@ -110,10 +146,12 @@ export function plan(
   } else
     return {
       supported: false,
+      missing: [],
       steps: [],
       guard: "ok",
       tokens: 0,
       capability: "Unrecognized task",
+      baseline: null,
     };
   const missing = ids.filter((id) => excluded.includes(id));
   const steps = ids
@@ -124,6 +162,7 @@ export function plan(
       order: i + 1,
       label: id.split("/")[1],
       server: id.split("/")[0],
+      schema: (catalog as Record<string, ToolSchema>)[id],
     }));
   return {
     supported: !missing.length,
@@ -132,5 +171,6 @@ export function plan(
     guard: guard(steps),
     tokens: steps.reduce((n, t) => n + (t.schemaTokens || 120), 0),
     capability,
+    baseline: null,
   };
 }

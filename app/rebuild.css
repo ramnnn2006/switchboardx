@@ -397,3 +397,17 @@ main button[type=submit]:disabled{opacity:.6;cursor:not-allowed}
 .brand-agent-icon{display:inline-flex;align-items:center;flex-shrink:0}.brand-agent-icon img{width:18px;height:18px;object-fit:contain}.brand-agent-icon .brand-dark{display:none}.dark .brand-agent-icon .brand-light{display:none}.dark .brand-agent-icon .brand-dark{display:block}
 
 #connect button[role=tab][aria-selected=true]{background:#faf7ee;color:#1f2a1c;box-shadow:0 1px 2px #1f2a1c1f,0 0 0 1px #1f2a1c0f}#connect button[role=tab][aria-selected=false]{background:transparent;color:#1f2a1c99;box-shadow:none}#connect button[role=tab]{min-height:44px} @media(max-width:600px){.new-user-tour{bottom:12px;padding:10px;gap:5px}.new-user-tour span{margin-right:0;font-size:11px}#connect button[role=tab]{padding:10px 12px}}
+
+.demo-provenance-note{position:relative;z-index:2;margin:0;padding:8px 16px;font:11px/1.5 "Geist Mono",monospace;background:#f6f1e4;color:#4e6b3a;border-bottom:1px solid #1f2a1c1a;text-align:center}
+/* Keep the plan verdict in its own row, never over graph nodes. */
+.faithful-planner div.relative:has(> .react-flow){height:auto!important;overflow:hidden}
+.faithful-planner .react-flow{height:330px!important;min-height:330px;overflow:auto!important}
+.faithful-planner .react-flow > svg:not(.react-flow__background){min-width:700px;min-height:320px}
+.faithful-planner div.relative:has(> .react-flow) > div.absolute.bottom-4{position:relative!important;inset:auto!important;margin:12px;align-items:flex-start}
+.faithful-planner ol.overflow-x-auto{flex-wrap:wrap;overflow:visible;row-gap:10px}
+.faithful-planner ol.overflow-x-auto > li{flex-shrink:0}
+.faithful-planner pre{max-width:100%;overflow-x:auto;white-space:pre}
+@media(max-width:1000px){.faithful-planner .grid{grid-template-columns:minmax(0,1fr)!important}.faithful-planner .react-flow{height:300px!important;min-height:300px}.faithful-planner .react-flow > svg:not(.react-flow__background){min-width:650px;height:300px}.schema-drawer{width:100%;max-width:100vw;padding:24px 16px}.faithful-planner .sticky{position:relative}}
+@media(max-width:600px){.faithful-planner button{min-height:36px}.faithful-planner .react-flow + div{font-size:13px}.faithful-planner .flex-wrap{row-gap:10px}.local-toast{width:calc(100vw - 24px);max-width:440px;padding:12px;font-size:12px;bottom:12px}.graph-panel{width:calc(100vw - 24px);right:12px;max-height:75vh;overflow:auto}}
+.faithful-planner [data-local-compare] > div{min-width:0;overflow:hidden}.faithful-planner [data-local-compare] .stamp{max-width:100%;font-size:12px;white-space:normal;overflow-wrap:anywhere;transform:none;padding:8px}.faithful-planner [data-local-compare] .items-baseline{gap:12px;flex-wrap:wrap}.faithful-planner [data-local-compare] .sticker{max-width:100%;overflow-wrap:anywhere}.faithful-planner ol.overflow-x-auto{display:flex!important;flex-wrap:wrap!important;overflow:visible!important;white-space:normal!important}button:disabled{cursor:not-allowed;opacity:.45}
+.faithful-planner div.relative:has(>div > .react-flow){height:auto!important;overflow:hidden!important}.faithful-planner div.relative:has(>div > .react-flow) > .h-full{height:auto!important}.faithful-planner div.relative:has(>div > .react-flow) > .absolute.bottom-4{position:relative!important;inset:auto!important;margin:12px;align-items:flex-start}

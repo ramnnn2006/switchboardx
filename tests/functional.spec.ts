@@ -26,7 +26,7 @@ for (const [task, record] of Object.entries(recorded.plans))
   test("recorded plan: " + task, async ({ page }) => {
     await page.goto("/ask?task=" + encodeURIComponent(task));
     await expect(page.locator(".faithful-planner")).toBeVisible();
-    await expect(page.locator(".react-flow svg")).toBeVisible();
+    await expect(page.locator(".react-flow svg.local-plan-edges")).toBeVisible();
     for (const step of record.plan.steps) {
       const tool = step.tool_id.replace(/^([a-z0-9-]+)\./, "$1/");
       expect(
@@ -177,7 +177,7 @@ test('pointer sticker drag replans step cards',async({page})=>{
 });
 test('docs exact configuration tabs, bench accordion, runs memory',async({page})=>{
  await page.goto('/docs');await page.getByRole('tab',{name:'Codex',exact:true}).click();await expect(page.locator('main pre').nth(1)).toContainText('[mcp_servers.switchboard]');
- await page.getByRole('tab',{name:'MCP from a checkout',exact:true}).click();await expect(page.locator('main pre').nth(2)).toContainText('/path/to/');
+ await page.getByRole('tab',{name:'MCP stdio',exact:true}).click();await expect(page.locator('main pre').nth(2)).toContainText('switchhboard-mcp');
  await page.goto('/bench');await page.getByRole('button',{name:'Hardware',exact:true}).click();await expect(page.getByRole('button',{name:'Hardware',exact:true})).toHaveAttribute('aria-expanded','true');
  await page.goto('/runs');await page.getByRole('tab',{name:'My memory',exact:true}).click();await expect(page.locator('main')).toContainText('Save what you already know.');await page.getByRole('tab',{name:'Run journal',exact:true}).click();await expect(page.locator('main')).toContainText('Open a PR on');
 });

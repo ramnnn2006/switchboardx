@@ -1,18 +1,18 @@
 {
   "Claude Code": {
     "caption": "terminal",
-    "code": "# After npm publication\nclaude mcp add --transport stdio switchboardx -- npx -y switchboardx\nclaude mcp list"
+    "code": "# After npm publication\nclaude mcp add switchboard -- npx -y switchhboard-mcp\nclaude mcp list"
   },
   "Claude Desktop": {
     "caption": "claude_desktop_config.json",
-    "code": "{\n  \"mcpServers\": {\n    \"switchboardx\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchboardx\"\n      ]\n    }\n  }\n}"
+    "code": "{\n  \"mcpServers\": {\n    \"switchhboard-mcp\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchhboard-mcp\"\n      ]\n    }\n  }\n}"
   },
   "Codex": {
     "caption": "~/.codex/config.toml",
-    "code": "[mcp_servers.switchboardx]\ncommand = \"npx\"\nargs = [\"-y\", \"switchboardx\"]"
+    "code": "[mcp_servers.switchboard]\ncommand = \"npx\"\nargs = [\"-y\", \"switchhboard-mcp\"]"
   },
   "Cursor": {
     "caption": ".cursor/mcp.json",
-    "code": "{\n  \"mcpServers\": {\n    \"switchboardx\": {\n      \"type\": \"stdio\",\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchboardx\"\n      ]\n    }\n  }\n}"
+    "code": "{\n  \"mcpServers\": {\n    \"switchhboard-mcp\": {\n      \"type\": \"stdio\",\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"switchhboard-mcp\"\n      ]\n    }\n  }\n}"
   }
 }
