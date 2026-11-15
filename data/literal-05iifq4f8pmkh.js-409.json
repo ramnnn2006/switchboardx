@@ -1,0 +1,559 @@
+[
+  {
+    "id": "open-pr",
+    "match": {
+      "regex": "\\b(pr|pull request|merge request|fix|branch|commit)\\b",
+      "flags": "i"
+    },
+    "caps": [
+      "code.open_pr"
+    ],
+    "held": [
+      {
+        "type": "repo.ref",
+        "value": "acme/api"
+      }
+    ],
+    "skipped": [
+      {
+        "tool": "github/search_repositories",
+        "entity": "acme/api",
+        "type": "repo.ref"
+      }
+    ],
+    "steps": [
+      {
+        "tool": "github/create_branch",
+        "consumes": [
+          [
+            "owner",
+            "repo.ref",
+            "held"
+          ],
+          [
+            "repo",
+            "repo.ref",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "ref",
+            "branch.name"
+          ]
+        ],
+        "alt": "git/git_create_branch"
+      },
+      {
+        "tool": "github/get_file_contents",
+        "consumes": [
+          [
+            "owner",
+            "repo.ref",
+            "held"
+          ],
+          [
+            "path",
+            "file.path",
+            "held"
+          ],
+          [
+            "ref",
+            "branch.name",
+            "step:1"
+          ]
+        ],
+        "yields": [
+          [
+            "sha",
+            "file.sha"
+          ],
+          [
+            "content",
+            "file.text"
+          ]
+        ],
+        "risk": [
+          "reads_private"
+        ]
+      },
+      {
+        "tool": "github/create_or_update_file",
+        "consumes": [
+          [
+            "branch",
+            "branch.name",
+            "step:1"
+          ],
+          [
+            "sha",
+            "file.sha",
+            "step:2"
+          ],
+          [
+            "content",
+            "file.text",
+            "step:2"
+          ]
+        ],
+        "yields": [
+          [
+            "commit.sha",
+            "commit.sha"
+          ]
+        ],
+        "alt": "github/push_files"
+      },
+      {
+        "tool": "github/create_pull_request",
+        "consumes": [
+          [
+            "head",
+            "branch.name",
+            "step:1"
+          ],
+          [
+            "base",
+            "branch.name",
+            "held"
+          ],
+          [
+            "owner",
+            "repo.ref",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "number",
+            "pr.number"
+          ]
+        ]
+      }
+    ],
+    "baseline": [
+      {
+        "tool": "github/create_pull_request",
+        "score": 0.912
+      },
+      {
+        "tool": "github/update_pull_request",
+        "score": 0.884
+      },
+      {
+        "tool": "gitlab/create_merge_request",
+        "score": 0.861
+      },
+      {
+        "tool": "github/list_pull_requests",
+        "score": 0.843
+      },
+      {
+        "tool": "github/search_pull_requests",
+        "score": 0.829
+      }
+    ],
+    "missing": [
+      {
+        "tool": "github/create_branch",
+        "reason": "create_pull_request.head needs branch.name. Nothing in the bag makes one."
+      }
+    ],
+    "sources": [
+      "repo.ref",
+      "file.path"
+    ],
+    "targets": [
+      "pr.number"
+    ]
+  },
+  {
+    "id": "meeting",
+    "match": {
+      "regex": "\\b(meet|meeting|slot|invite|calendar|schedule)\\b",
+      "flags": "i"
+    },
+    "caps": [
+      "calendar.schedule"
+    ],
+    "held": [
+      {
+        "type": "email.address",
+        "value": "team@example.com"
+      }
+    ],
+    "steps": [
+      {
+        "tool": "google-calendar/get-current-time",
+        "consumes": [],
+        "yields": [
+          [
+            "now",
+            "time.range"
+          ]
+        ],
+        "alt": "time/get_current_time"
+      },
+      {
+        "tool": "google-calendar/get-freebusy",
+        "consumes": [
+          [
+            "timeMin",
+            "time.range",
+            "step:1"
+          ],
+          [
+            "calendars",
+            "email.address",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "free",
+            "time.slot"
+          ]
+        ],
+        "risk": [
+          "reads_private"
+        ]
+      },
+      {
+        "tool": "google-calendar/create-event",
+        "consumes": [
+          [
+            "start",
+            "time.slot",
+            "step:2"
+          ],
+          [
+            "attendees",
+            "email.address",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "id",
+            "calendar.event"
+          ]
+        ]
+      }
+    ],
+    "baseline": [
+      {
+        "tool": "google-calendar/create-event",
+        "score": 0.903
+      },
+      {
+        "tool": "google-calendar/list-events",
+        "score": 0.877
+      },
+      {
+        "tool": "google-calendar/search-events",
+        "score": 0.861
+      },
+      {
+        "tool": "gmail/send_email",
+        "score": 0.842
+      },
+      {
+        "tool": "gmail/draft_email",
+        "score": 0.83
+      }
+    ],
+    "missing": [
+      {
+        "tool": "google-calendar/get-freebusy",
+        "reason": "create-event.start needs a free time.slot. Nothing in the bag finds one."
+      }
+    ],
+    "sources": [
+      "email.address"
+    ],
+    "targets": [
+      "calendar.event"
+    ]
+  },
+  {
+    "id": "summarize-email",
+    "match": {
+      "regex": "\\b(summari[sz]e|page|article|url|email it|send it)\\b",
+      "flags": "i"
+    },
+    "caps": [
+      "web.read",
+      "mail.send"
+    ],
+    "held": [
+      {
+        "type": "url",
+        "value": "https://example.com/post"
+      }
+    ],
+    "steps": [
+      {
+        "tool": "fetch/fetch",
+        "consumes": [
+          [
+            "url",
+            "url",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "content",
+            "text"
+          ]
+        ],
+        "risk": [
+          "ingests_untrusted"
+        ],
+        "alt": "firecrawl/firecrawl_scrape"
+      },
+      {
+        "tool": "gmail/search_emails",
+        "consumes": [
+          [
+            "query",
+            "query.text",
+            "step:1"
+          ]
+        ],
+        "yields": [
+          [
+            "to",
+            "email.address"
+          ]
+        ],
+        "risk": [
+          "reads_private"
+        ]
+      },
+      {
+        "tool": "gmail/send_email",
+        "consumes": [
+          [
+            "to",
+            "email.address",
+            "step:2"
+          ],
+          [
+            "body",
+            "text",
+            "step:1"
+          ]
+        ],
+        "yields": [
+          [
+            "id",
+            "email.id"
+          ]
+        ],
+        "risk": [
+          "exfil_sink"
+        ]
+      }
+    ],
+    "guard": {
+      "naive": [
+        "fetch/fetch",
+        "gmail/search_emails",
+        "gmail/send_email"
+      ],
+      "safe": [
+        {
+          "tool": "fetch/fetch",
+          "consumes": [
+            [
+              "url",
+              "url",
+              "held"
+            ]
+          ],
+          "yields": [
+            [
+              "content",
+              "text"
+            ]
+          ],
+          "risk": [
+            "ingests_untrusted"
+          ]
+        },
+        {
+          "tool": "gmail/draft_email",
+          "consumes": [
+            [
+              "body",
+              "text",
+              "step:1"
+            ]
+          ],
+          "yields": [
+            [
+              "id",
+              "email.draft"
+            ]
+          ]
+        }
+      ],
+      "reason": "Lethal trifecta: fetch/fetch ingests untrusted content, gmail/search_emails reads private data, gmail/send_email can exfiltrate. Cut the edge into the exfil sink; offering a draft you send yourself.",
+      "legs": [
+        "ingests_untrusted",
+        "reads_private",
+        "exfil_sink"
+      ],
+      "cut": [
+        "gmail/search_emails",
+        "gmail/send_email"
+      ]
+    },
+    "baseline": [
+      {
+        "tool": "gmail/send_email",
+        "score": 0.896
+      },
+      {
+        "tool": "fetch/fetch",
+        "score": 0.871
+      },
+      {
+        "tool": "firecrawl/firecrawl_scrape",
+        "score": 0.86
+      },
+      {
+        "tool": "gmail/draft_email",
+        "score": 0.844
+      },
+      {
+        "tool": "notion/API-retrieve-page-markdown",
+        "score": 0.82
+      }
+    ],
+    "missing": [
+      {
+        "tool": "(guard)",
+        "reason": "top-k has no idea about chain risk. It hands over fetch + send_email without blinking."
+      }
+    ],
+    "sources": [
+      "url"
+    ],
+    "targets": [
+      "email.id"
+    ]
+  },
+  {
+    "id": "triage",
+    "match": {
+      "regex": "\\b(bug|issue|triage|linear|slack|post|channel)\\b",
+      "flags": "i"
+    },
+    "caps": [
+      "issues.search",
+      "chat.post"
+    ],
+    "held": [
+      {
+        "type": "query.text",
+        "value": "login bug"
+      }
+    ],
+    "steps": [
+      {
+        "tool": "linear/linear_search_issues",
+        "consumes": [
+          [
+            "query",
+            "query.text",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "issues",
+            "issue.key"
+          ]
+        ],
+        "alt": "github/search_issues"
+      },
+      {
+        "tool": "slack/slack_get_channel_history",
+        "consumes": [
+          [
+            "channel_id",
+            "channel.id",
+            "held"
+          ]
+        ],
+        "yields": [
+          [
+            "ts",
+            "thread.ts"
+          ]
+        ]
+      },
+      {
+        "tool": "slack/slack_post_message",
+        "consumes": [
+          [
+            "channel_id",
+            "channel.id",
+            "held"
+          ],
+          [
+            "text",
+            "text",
+            "step:1"
+          ]
+        ],
+        "yields": [
+          [
+            "ts",
+            "thread.ts"
+          ]
+        ],
+        "risk": [
+          "exfil_sink"
+        ]
+      }
+    ],
+    "baseline": [
+      {
+        "tool": "linear/linear_search_issues",
+        "score": 0.88
+      },
+      {
+        "tool": "github/search_issues",
+        "score": 0.874
+      },
+      {
+        "tool": "atlassian/jira_search",
+        "score": 0.866
+      },
+      {
+        "tool": "slack/slack_post_message",
+        "score": 0.85
+      },
+      {
+        "tool": "linear/linear_create_issue",
+        "score": 0.83
+      }
+    ],
+    "missing": [
+      {
+        "tool": "(order)",
+        "reason": "three near-duplicate issue searches and no call order"
+      }
+    ],
+    "sources": [
+      "query.text",
+      "channel.id"
+    ],
+    "targets": [
+      "thread.ts"
+    ]
+  }
+]

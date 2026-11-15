@@ -1,0 +1,117 @@
+[
+  {
+    "run_id": "r-001",
+    "plan_id": "replay-open-pr-1",
+    "task": "Open a PR on acme/api fixing the flaky login test",
+    "at": "2026-11-14T09:40:00Z",
+    "ok": true,
+    "steps": [
+      {
+        "tool": "github/create_branch",
+        "ok": true
+      },
+      {
+        "tool": "github/get_file_contents",
+        "ok": true
+      },
+      {
+        "tool": "github/create_or_update_file",
+        "ok": true
+      },
+      {
+        "tool": "github/create_pull_request",
+        "ok": true
+      }
+    ],
+    "entities_written": [
+      {
+        "type": "branch.name",
+        "value": "fix/flaky-login"
+      },
+      {
+        "type": "pr.number",
+        "value": "#482"
+      }
+    ]
+  },
+  {
+    "run_id": "r-002",
+    "plan_id": "replay-meeting-1",
+    "task": "Find a free meeting slot next week and send the invite",
+    "at": "2026-11-14T09:52:00Z",
+    "ok": true,
+    "steps": [
+      {
+        "tool": "google-calendar/get-current-time",
+        "ok": true
+      },
+      {
+        "tool": "google-calendar/get-freebusy",
+        "ok": true
+      },
+      {
+        "tool": "google-calendar/create-event",
+        "ok": true
+      }
+    ],
+    "entities_written": [
+      {
+        "type": "calendar.event",
+        "value": "evt_7f3a"
+      }
+    ]
+  },
+  {
+    "run_id": "r-003",
+    "plan_id": "replay-triage-1",
+    "task": "Find open login bugs in Linear and post a summary to #eng",
+    "at": "2026-11-14T10:05:00Z",
+    "ok": false,
+    "steps": [
+      {
+        "tool": "linear/linear_search_issues",
+        "ok": true
+      },
+      {
+        "tool": "slack/slack_get_channel_history",
+        "ok": false
+      },
+      {
+        "tool": "slack/slack_post_message",
+        "ok": false
+      }
+    ],
+    "entities_written": []
+  },
+  {
+    "run_id": "r-004",
+    "plan_id": "replay-open-pr-2",
+    "task": "Open a PR on acme/web bumping the eslint config",
+    "at": "2026-11-14T10:21:00Z",
+    "ok": true,
+    "steps": [
+      {
+        "tool": "github/create_branch",
+        "ok": true
+      },
+      {
+        "tool": "github/get_file_contents",
+        "ok": true
+      },
+      {
+        "tool": "github/create_or_update_file",
+        "ok": true
+      },
+      {
+        "tool": "github/create_pull_request",
+        "ok": true
+      }
+    ],
+    "entities_written": [
+      {
+        "type": "repo.ref",
+        "value": "acme/web"
+      }
+    ]
+  }
+]
