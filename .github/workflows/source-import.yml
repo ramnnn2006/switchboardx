@@ -1,0 +1,45 @@
+name: Import website source
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Import reviewed source checkpoint
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+          cat > "$RUNNER_TEMP/askpass" <<'ASKPASS'
+          #!/bin/sh
+          case "$1" in *Username*) printf '%s\n' x-access-token;; *) printf '%s\n' "$GH_TOKEN";; esac
+          ASKPASS
+          chmod 700 "$RUNNER_TEMP/askpass"
+          export GIT_ASKPASS="$RUNNER_TEMP/askpass"
+          git clone --single-branch --branch "$BRANCH" "https://github.com/$REPO.git" site
+          cd site
+          git config user.name "$(git log -1 --format=%an)"
+          git config user.email "$(git log -1 --format=%ae)"
+          python3 - <<'PY'
+          import pathlib,zipfile,hashlib
+          archive=next(pathlib.Path('.').glob('*switchboard-source.zip'))
+          assert hashlib.sha256(archive.read_bytes()).hexdigest()=='0030edb2ee4ce44c5c38218a90b3a71a0041d470f4b6031f6d508f4eaedf62df'
+          with zipfile.ZipFile(archive) as z:
+              for info in z.infolist():
+                  p=pathlib.PurePosixPath(info.filename)
+                  assert not p.is_absolute() and '..' not in p.parts and '.git' not in p.parts
+                  assert not (info.external_attr >> 16) & 0o170000 == 0o120000
+              z.extractall('.')
+          archive.unlink()
+          PY
+          git add app components lib templates data public tests package.json package-lock.json next.config.ts next-env.d.ts tsconfig.json playwright.config.ts .gitignore README.md NOTICE '*switchboard-source.zip'
+          git commit -m "Import working website source and local interaction implementation"
+          git push origin "HEAD:$BRANCH"
+          rm -f "$RUNNER_TEMP/askpass"
