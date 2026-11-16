@@ -36,7 +36,7 @@ export async function generateMetadata({
     signup:"Switchboard account preview. Account service is not connected; explore without creating an account.",
   };
   const key=name||"home";
-  const titles:Record<string,string>={home:"Graph-based MCP tool planning",ask:"Plan MCP tool calls",explore:"Explore the MCP tool catalog",why:"Why graph-based tool planning",bench:"Reference benchmarks and token budgets",guard:"Risky-chain guard demo",runs:"Sample run journal",docs:"MCP setup and API documentation",login:"Sign-in preview",signup:"Account preview"};
+  const titles:Record<string,string>={home:"MCP tool planner with typed dependencies",ask:"Plan MCP tool calls in dependency order",explore:"Explore 420 MCP tools and schemas",why:"Why MCP tools need dependency graphs",bench:"MCP token benchmarks and replay data",guard:"MCP risky-chain guard demo",runs:"Run journal and browser-local reports",docs:"switchhboard-mcp setup and API docs",login:"Sign-in preview",signup:"Account preview"};
   const title=titles[key]||"Page not found";
   return {title, description:descriptions[key],alternates:{canonical:name?"/"+name:"/"},openGraph:{title:title+" | Switchboard",description:descriptions[key],type:"website",siteName:"Switchboard",url:name?"/"+name:"/",images:[{url:"/og-switchboard.jpg",width:1200,height:630,alt:"Switchboard. Stop loading every tool."}]},twitter:{card:"summary_large_image",title:title+" | Switchboard",description:descriptions[key],images:["/og-switchboard.jpg"]},...(key==="login"||key==="signup"?{robots:{index:false,follow:true}}:{})};
 }
@@ -55,5 +55,17 @@ export default async function Page({
     path.join(process.cwd(), "templates", route + ".html"),
     "utf8",
   );
-  return <Experience route={route} html={html} />;
+  const url = "https://switchboardx.vercel.app" + (route === "home" ? "/" : "/" + route);
+  const label = route === "home" ? "Switchboard" : route[0].toUpperCase() + route.slice(1);
+  const structured = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "WebSite", "@id": "https://switchboardx.vercel.app/#website", url: "https://switchboardx.vercel.app/", name: "Switchboard", inLanguage: "en" },
+      { "@type": "WebPage", "@id": url + "#webpage", url, name: label + " | Switchboard", isPartOf: { "@id": "https://switchboardx.vercel.app/#website" }, inLanguage: "en" },
+    ],
+  };
+  return <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structured).replace(/</g, "\\u003c") }} />
+    <Experience route={route} html={route === "explore" ? html.replace(/<main([^>]*)>/, '<main$1><h1 class="sr-only">Explore the MCP tool catalog</h1>') : html} />
+  </>;
 }

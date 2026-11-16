@@ -147,7 +147,7 @@ export default function Experience({
       if (text(b) === "Copy prompt")
         on(b, "click", () => {
           void copyText(
-            "Switchhboard-mcp npm publication is pending. Once switchhboard-mcp is published, add the stdio MCP server using command npx and args [-y, switchhboard-mcp]. It exposes plan, report_run and catalog_stats. The current local build plans in process; the requested HydraDB backend is still being implemented and is not verified yet. Do not install similarly named packages.",
+            "Switchhboard-mcp npm publication is pending. Once switchhboard-mcp is published, add the stdio MCP server using command npx and args [-y, switchhboard-mcp]. It exposes plan, report_run and catalog_stats. The product supports real HydraDB; configure your own HYDRA_HTTP_URL and HYDRA_TOKEN. The website remains browser-local. The separate hosted API is unauthenticated and for synthetic or public data only. Do not install similarly named packages.",
             "Agent connection prompt copied",
           );
         });
