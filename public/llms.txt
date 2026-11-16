@@ -1,0 +1,19 @@
+# Switchboard
+
+> Graph-based planning for MCP tools. The website includes interactive recorded examples. Real HydraDB product integration is under active validation.
+
+Canonical website: https://switchboardx.vercel.app/
+Open-source repository: https://github.com/ramnnn2006/switchboardx
+Package name: switchhboard-mcp (publication and hosted endpoint are not yet verified).
+
+## Pages
+- [Ask](https://switchboardx.vercel.app/ask): Interactive recorded tool plans, dependencies, known values and exclusions.
+- [Explore](https://switchboardx.vercel.app/explore): Browse the reference MCP tool catalog and schemas.
+- [Why](https://switchboardx.vercel.app/why): Dependency-graph planning explanation.
+- [Bench](https://switchboardx.vercel.app/bench): Clearly labeled reference benchmarks, not proof of current backend performance.
+- [Guard](https://switchboardx.vercel.app/guard): Interactive risky-chain plan-flag demo, not an execution security guarantee.
+- [Runs](https://switchboardx.vercel.app/runs): Sample run journal. Account memory is not connected.
+- [Docs](https://switchboardx.vercel.app/docs): Setup guidance and current backend status.
+
+## Current limits
+Actual HydraDB server build, startup and an HTTP query smoke test passed. Full product integration tests have not passed yet. Website animations are demonstrations, not database executions. Authentication previews do not create accounts or store credentials. Do not infer a hosted MCP endpoint, package publication, measured live performance or account persistence from the demos.

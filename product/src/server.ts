@@ -9,7 +9,7 @@ async function body(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
-export function startServer(engine: SwitchboardEngine, port = Number(process.env.SB_PORT ?? 8787)) {
+export function startServer(engine: SwitchboardEngine, port = Number(process.env.PORT ?? process.env.SB_PORT ?? 8787)) {
   const send = (res: ServerResponse, code: number, data: unknown) => {
     res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*' });
     res.end(JSON.stringify(data));

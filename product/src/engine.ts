@@ -74,11 +74,17 @@ export class SwitchboardEngine {
       throw new Error(`HydraDB is unreachable via ${boltUrl ?? httpUrl}: ${e instanceof Error ? e.message : e}. Start HydraDB or fix the URL/token; refusing to fall back to a database-less plan.`);
     }
     const engine = new SwitchboardEngine(opts, store, url);
-    if (await store.isEmpty()) {
-      // first run against a fresh graph: seed it from the bundled/merged catalog
-      await store.ingestCatalog(engine.seedCatalog!);
+    try {
+      if (await store.isEmpty()) {
+        // first run against a fresh graph: seed it from the bundled/merged catalog
+        await store.ingestCatalog(engine.seedCatalog!);
+      }
+      await engine.syncFromHydra();
+    } catch (e) {
+      // never leak the driver/connection when seeding or the first read fails
+      await store.close().catch(() => {});
+      throw e;
     }
-    await engine.syncFromHydra();
     return engine;
   }
 

@@ -1,0 +1,21 @@
+simulated-feedback learning experiment (BROKEN = postgres/query, firecrawl/firecrawl_scrape )
+iterations:      1    2    3    4    5    6    7    8    9   10
+learning %:     71  100  100  100  100  100  100  100  100  100
+no-memory %:    71   71   71   71   71   71   71   71   71   71
+bm25 top-5 goal-hit (no graph, static): 43%
+{"broken":["postgres/query","firecrawl/firecrawl_scrape"],"learning":[0.7142857142857143,1,1,1,1,1,1,1,1,1],"no_memory":[0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143,0.7142857142857143],"bm25_top5_goal_hit":0.42857142857142855}
+
+---
+Provenance: run locally during the build on 2026-11-16 IST with SB_BACKEND=embedded
+(--embedded flag), 10 iterations over the seven fixture tasks in bench/learning.mjs.
+Feedback in this experiment is SIMULATED (a harness marks the two BROKEN tools as
+failed); it measures the learning loop mechanics, not real agent accuracy.
+Backend note: this artifact is the embedded-backend copy. The authoritative run is
+the hydra-it GitHub Actions workflow, which executes the same experiment against a
+real hydra-db/hydradb v0.4.0 graph-node server (clearMemory between curves).
+Free-host persistence note: on Render's free tier the filesystem is ephemeral and
+idle services spin down, so HydraDB run memory resets on spin-down/redeploy and the
+catalog re-seeds on boot. The hosted demo therefore shows learning within an uptime
+window, not durable cross-restart memory; durable-memory claims belong to the CI
+restart test (test/hydra.live.it.mjs "memory across restart") against a real server
+with a persistent volume, not to the free demo.

@@ -172,6 +172,15 @@ export class Planner {
         if (sink) byObject.set(`sink:${groupKey(sink.tool)}`, sink);
       }
     }
+    // A source request and a delivery request are separate goals even when
+    // both mention "email". Otherwise send_email wins that object group and
+    // its generic doc.text prerequisite can be filled by an unrelated reader.
+    const wantsMailContent = /\b(?:read|summari[sz]e)\s+(?:(?:my|the)\s+)?(?:(?:latest|last|recent)\s+)?(?:email|emails|gmail|mail|inbox)\b|\blatest email\b/.test(lower);
+    if (wantsMailContent) {
+      const reader = scored.find((s) => this.capabilityFor(s.tool) === 'email.read'
+        && s.tool.yields.some((y) => y.type === 'doc.text'));
+      if (reader) byObject.set('source:email-content', reader);
+    }
     const goals = [...byObject.values()].slice(0, 3);
     // information producers before sinks, mention order within each group
     goals.sort((a, b) => {

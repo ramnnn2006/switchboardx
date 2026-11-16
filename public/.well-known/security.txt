@@ -1,0 +1,4 @@
+Contact: mailto:rmmnnnn.18@gmail.com
+Expires: 2027-05-14T21:33:15Z
+Canonical: https://switchboardx.vercel.app/.well-known/security.txt
+Preferred-Languages: en

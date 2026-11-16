@@ -56,17 +56,17 @@ cargo run --locked --features server-runtime --bin graph-node
 
 (full contract: [USING-HYDRADB.md](https://github.com/hydra-db/hydradb/blob/main/USING-HYDRADB.md), [cypher-compat.md](https://github.com/hydra-db/hydradb/blob/main/cypher-compat.md))
 
-Then point switchhboard-mcp at it - Bolt for local, HTTPS for hosted:
+Then point switchhboard-mcp at it. The **target transport is the HydraDB HTTP query API** (`HYDRA_HTTP_URL`) - live validation against the real server is pending in CI; Bolt (`HYDRA_BOLT_URL`) is experimental against HydraDB v0.4.0 - see the note below before relying on either:
 
 ```bash
 claude mcp add switchboard \
-  -e HYDRA_BOLT_URL=bolt://127.0.0.1:7687 \
+  -e HYDRA_HTTP_URL=http://127.0.0.1:8443 \
   -e HYDRA_TOKEN=local-development-token-32-bytes \
   -- npx -y switchhboard-mcp
 ```
 
-- `HYDRA_BOLT_URL` - Bolt endpoint (local dev; Neo4j-driver compatible)
-- `HYDRA_HTTP_URL` - HydraDB HTTP query API instead (`http(s)://host:8443`) for hosts that can't expose raw Bolt TCP
+- `HYDRA_HTTP_URL` - HydraDB HTTP query API (`http(s)://host:8443`). **Target transport; live validation pending.** The live integration suite and the learning-curve experiment are wired to run over it in CI against the real server, but a green CI run has not landed yet - treat HTTP as unproven until it does. Also the only option for hosts that can't expose raw Bolt TCP (e.g. Render free web services).
+- `HYDRA_BOLT_URL` - Bolt endpoint (`bolt://host:7687`), Neo4j-driver compatible. **Experimental**: against HydraDB v0.4.0 in CI so far, `neo4j-driver` 6.x intermittently failed the handshake/session decode (`offset out of range` errors) and we have not characterized it yet. Integer-valued parameters are wrapped as Bolt integers on this transport (HydraDB requires integer node ids), but treat Bolt as unverified until CI proves it - the CI workflow runs an informational, non-gating Bolt probe to track it.
 - `HYDRA_TOKEN` - bearer token (password field over Bolt); local default shown above
 - `HYDRA_GRAPH` / `HYDRA_CELL` - graph id / partition, defaults `default` / `cell-0`
 

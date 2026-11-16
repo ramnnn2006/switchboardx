@@ -759,6 +759,7 @@ export default function Experience({
       cleanup.forEach((f) => f());
     };
   }, [route]);
+  useEffect(()=>{root.current?.querySelector('button[aria-label="Open menu"]')?.setAttribute("aria-expanded",String(menu));},[menu]);
   useEffect(() => {
     if (task && route === "ask" && root.current) {
       const mount = root.current.querySelector("#local-planner-mount");

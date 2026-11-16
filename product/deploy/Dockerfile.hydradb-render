@@ -1,0 +1,15 @@
+# Wrapper for free hosting (Render): adds the entrypoint that writes
+# GRAPH_AUTH_TOKEN_VALUE into GRAPH_AUTH_TOKEN_FILE and exports the listener
+# addresses graph-node actually reads (GRAPH_HTTP_ADDR/GRAPH_ADMIN_ADDR/
+# GRAPH_BOLT_ADDR, per scripts/runtime_smoke.sh at hydra-db/hydradb v0.4.0).
+# The base image is hydra-db/hydradb's own Dockerfile build (graph-node stage,
+# ENTRYPOINT /usr/local/bin/graph-node).
+ARG HYDRADB_IMAGE
+FROM ${HYDRADB_IMAGE}
+USER root
+COPY entrypoint.hydradb.sh /usr/local/bin/hydradb-render-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/hydradb-render-entrypoint.sh \
+ && mkdir -p /data/store /data/cache \
+ && chown -R 10001:10001 /data
+USER 10001:10001
+ENTRYPOINT ["/usr/local/bin/hydradb-render-entrypoint.sh"]

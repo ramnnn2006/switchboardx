@@ -1,0 +1,32 @@
+# All-in-one free-host image: HydraDB graph-node + switchhboard-mcp API in ONE
+# container (option B: one Render service instead of two, both processes share
+# 512MB - RAM fit unverified until deployed; GRAPH_DATA_CACHE_BYTES set low).
+# graph-node listens loopback-only; the product API is the only public port and
+# talks to HydraDB over http://127.0.0.1:8443.
+#
+# Build arg HYDRADB_IMAGE: the graph-node image built from hydra-db/hydradb's
+# own Dockerfile (runtime stage = ubuntu:24.04 + libcypher-parser/libgraphblas).
+ARG HYDRADB_IMAGE
+
+FROM node:22-slim AS product-build
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+COPY data ./data
+RUN npm run build && npm prune --omit=dev
+
+FROM ${HYDRADB_IMAGE}
+USER root
+# Official node binary runs fine on ubuntu:24.04 (glibc 2.39 >= bookworm's 2.36).
+COPY --from=node:22-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=product-build /app /app
+COPY deploy/entrypoint.all-in-one.sh /usr/local/bin/switchhboard-all-in-one
+RUN chmod 0755 /usr/local/bin/switchhboard-all-in-one \
+ && mkdir -p /data/store /data/cache \
+ && chown -R 10001:10001 /data /app
+USER 10001:10001
+ENV PORT=8787
+EXPOSE 8787
+ENTRYPOINT ["/usr/local/bin/switchhboard-all-in-one"]

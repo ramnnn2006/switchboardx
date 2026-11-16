@@ -1,0 +1,69 @@
+# Render blueprint: free tier, no card required (https://render.com/docs/free).
+# Two free web services:
+#   hydradb-graph-node  - the HydraDB server (AGPL-3.0 engine, self-hosted as the
+#                         hackathon requires), HTTP query API exposed over HTTPS
+#   switchhboard-mcp-api- this product's HTTP API, talking to HydraDB over HTTPS
+# Free-tier realities (disclose them): 15-min idle spin-down (~1 min cold start),
+# ephemeral disk (catalog re-seeds on boot; run memory resets on redeploy),
+# 512 MB RAM per service. Not production hosting.
+#
+# Before deploying: run the docker-images workflow so both images exist in ghcr,
+# and set HYDRA_TOKEN below (or sync: false to enter it in the dashboard).
+services:
+  - type: web
+    name: hydradb-graph-node
+    runtime: image
+    image:
+      url: ghcr.io/ramnnn2006/hydradb-graph-node-render:latest
+    plan: free
+    healthCheckPath: /healthz # graph-node src/client/http.rs: JSON status ok
+    envVars:
+      - key: CLOUD_PROVIDER
+        value: local
+      - key: LOCAL_PATH
+        value: /data/store
+      - key: GRAPH_NAMESPACE
+        value: default
+      - key: GRAPH_ID
+        value: default
+      - key: GRAPH_CELL_ID
+        value: cell-0
+      - key: GRAPH_CELLS
+        value: cell-0
+      - key: GRAPH_NODE_ID
+        value: node-0
+      - key: GRAPH_BOLT_NODE_ADDRESSES
+        value: node-0=127.0.0.1:7687
+      - key: GRAPH_ADVERTISED_BOLT_ADDR
+        value: 127.0.0.1:7687
+      - key: GRAPH_DATA_CACHE_DIR
+        value: /data/cache
+      - key: GRAPH_AUTH_TOKEN_FILE
+        value: /data/auth-token
+      - key: GRAPH_ALLOW_PLAINTEXT
+        value: "true" # TLS terminates at Render's edge; the container speaks plaintext on its port
+      - key: RUST_MIN_STACK
+        value: "33554432"
+      # Render injects PORT and routes public HTTPS to it; the entrypoint binds
+      # GRAPH_HTTP_ADDR=0.0.0.0:$PORT (deploy/entrypoint.hydradb.sh). Do not set
+      # PORT here - overriding Render's value would misroute the service.
+      # The wrapper image's entrypoint writes GRAPH_AUTH_TOKEN_VALUE into
+      # GRAPH_AUTH_TOKEN_FILE, exports GRAPH_HTTP_ADDR=0.0.0.0:$PORT and keeps
+      # admin/Bolt loopback-only (deploy/entrypoint.hydradb.sh).
+      - key: GRAPH_AUTH_TOKEN_VALUE
+        sync: false
+
+  - type: web
+    name: switchhboard-mcp-api
+    runtime: image
+    image:
+      url: ghcr.io/ramnnn2006/switchhboard-mcp-api:latest
+    plan: free
+    healthCheckPath: /api/health # served by src/server.ts on the same listener
+    envVars:
+      - key: HYDRA_HTTP_URL
+        value: https://hydradb-graph-node.onrender.com
+      - key: HYDRA_TOKEN
+        sync: false # same value as GRAPH_AUTH_TOKEN_VALUE
+      # No PORT here either: server.ts binds process.env.PORT (Render-injected),
+      # falling back to SB_PORT, then 8787.

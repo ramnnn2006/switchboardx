@@ -274,13 +274,44 @@ export async function connectBolt(): Promise<{ store: HydraStore; url: string }>
   const token = process.env.HYDRA_TOKEN ?? 'local-development-token-32-bytes';
   const database = process.env.HYDRA_GRAPH ?? 'default';
   const neo4j = (await import('neo4j-driver')).default;
-  const driver = neo4j.driver(url, neo4j.auth.basic('neo4j', token), { disableLosslessIntegers: true });
-  await driver.verifyConnectivity();
+  // HydraDB requires integer ids (cypher-compat.md); the JS driver packs plain
+  // Numbers as Bolt Float, so every finite integer in the params must be
+  // wrapped as a Bolt Integer. FNV-1a ids stay under 2^53, so this is exact.
+  const ints = (v: unknown): unknown => {
+    if (typeof v === 'number' && Number.isInteger(v) && Math.abs(v) < 2 ** 53) return neo4j.int(v);
+    if (Array.isArray(v)) return v.map(ints);
+    if (v && typeof v === 'object') {
+      const o: Record<string, unknown> = {};
+      for (const [k, val] of Object.entries(v as Record<string, unknown>)) o[k] = ints(val);
+      return o;
+    }
+    return v;
+  };
+  const open = () =>
+    neo4j.driver(url, neo4j.auth.basic('neo4j', token), {
+      disableLosslessIntegers: true,
+      maxConnectionPoolSize: 8,
+      connectionAcquisitionTimeout: 10000,
+    });
+  let driver = open();
+  try {
+    await driver.verifyConnectivity();
+  } catch (first) {
+    // a poisoned handshake must not kill the whole run: close and retry once
+    await driver.close().catch(() => {});
+    driver = open();
+    try {
+      await driver.verifyConnectivity();
+    } catch (second) {
+      await driver.close().catch(() => {});
+      throw second;
+    }
+  }
   const runner: CypherRunner = {
     async run(cypher, params) {
       const session = driver.session({ database });
       try {
-        const res = await session.run(cypher, params ?? {});
+        const res = await session.run(cypher, (ints(params ?? {}) as Record<string, unknown>) ?? {});
         return res.records.map((rec) => {
           const o: Record<string, unknown> = {};
           for (const k of rec.keys) o[String(k)] = rec.get(k);

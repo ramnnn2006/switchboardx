@@ -1,0 +1,23 @@
+# Render blueprint VARIANT: single all-in-one free web service (option B).
+# Use this INSTEAD of render.yaml when the workspace instance-hour budget
+# matters more than process isolation. Same shared 750h pool applies; this
+# halves the new burn rate (1 service, not 2) but both processes share
+# 512MB RAM - fit unverified until deployed.
+# Free-tier realities (disclose them, source https://render.com/docs/free):
+# 15-min idle spin-down (~1 min cold start), ephemeral filesystem (HydraDB
+# store + run memory reset on spin-down/redeploy; catalog re-seeds on boot),
+# 512MB/0.1CPU. Demo hosting, not production.
+# Prereq: build ghcr.io/ramnnn2006/switchhboard-all-in-one via the
+# docker-images workflow (set include_all_in_one=true).
+services:
+  - type: web
+    name: switchhboard-all-in-one
+    runtime: image
+    image:
+      url: ghcr.io/ramnnn2006/switchhboard-all-in-one:latest
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: GRAPH_AUTH_TOKEN_VALUE
+        sync: false # bearer token for the internal HydraDB; also used as HYDRA_TOKEN
+      # No PORT override: Render injects PORT and routes to it; server.ts binds it.
