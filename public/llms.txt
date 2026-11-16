@@ -1,12 +1,10 @@
 # Switchboard
 
-> Graph-based planning for MCP tools. The website includes interactive recorded examples. The website is browser-local. A separate real HydraDB API is available as a public synthetic-data demo.
+> Graph-based planning for MCP tools. The website includes interactive recorded examples. Real HydraDB product integration is under active validation.
 
 Canonical website: https://switchboardx.vercel.app/
 Open-source repository: https://github.com/ramnnn2006/switchboardx
-Package name: switchhboard-mcp (publication pending; double h).
-Separate public API health: https://switchhboard-mcp-api.onrender.com/api/health
-The API is unauthenticated, including run reports. Use synthetic or public data only. Do not send private tasks, personal memory or credentials.
+Package name: switchhboard-mcp (publication and hosted endpoint are not yet verified).
 
 ## Pages
 - [Ask](https://switchboardx.vercel.app/ask): Interactive recorded tool plans, dependencies, known values and exclusions.
@@ -18,10 +16,4 @@ The API is unauthenticated, including run reports. Use synthetic or public data 
 - [Docs](https://switchboardx.vercel.app/docs): Setup guidance and current backend status.
 
 ## Current limits
-Real HydraDB integration and learning checks passed in CI. Hosted planning and guard smoke tests passed. These are bounded tests, not a security or performance guarantee. The API container build remains unresolved; the hosted API uses native Node. Free hosting can sleep or reset its data.
-
-The website does not call the hosted API. It plans in your browser from the bundled catalog and recorded examples; website reports stay in browser-local storage. Authentication previews do not create accounts or store passwords. My memory is not private cloud storage. No account-backed persistence is available.
-
-## Verification
-- CI: https://github.com/ramnnn2006/switchboardx/actions/runs/43825937215 (live integration and learning passed; API image failed).
-- Source and third-party notices: https://github.com/ramnnn2006/switchboardx
+Actual HydraDB server build, startup and an HTTP query smoke test passed. Full product integration tests have not passed yet. Website animations are demonstrations, not database executions. Authentication previews do not create accounts or store credentials. Do not infer a hosted MCP endpoint, package publication, measured live performance or account persistence from the demos.
